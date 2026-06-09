@@ -1,0 +1,20 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=ApexCore
+Name[ru]=ApexCore
+Comment=Комплексная оценка производительности компьютера
+Comment[ru]=Комплексная оценка производительности компьютера
+GenericName=Performance Benchmark
+GenericName[ru]=Бенчмарк производительности
+Exec=/usr/bin/apexcore webui
+TryExec=/usr/bin/apexcore
+Icon=apexcore
+Terminal=false
+Categories=Science;Utility;System;Monitor;
+Keywords=benchmark;performance;cpu;stress;ApexCore;
+StartupNotify=true
+# StartupWMClass намеренно не задан: WebUI открывается в системном браузере
+# (Firefox / Chromium / Yandex), его WM_CLASS не совпадает с launcher'ом
+# apexcore.desktop. Указание StartupWMClass=ApexCore было декоративным
+# и не работало бы на практике — браузер всё равно перетёр бы значение.

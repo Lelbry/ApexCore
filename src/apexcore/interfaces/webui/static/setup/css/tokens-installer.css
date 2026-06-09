@@ -1,0 +1,107 @@
+/* ApexCore Installer — design tokens.
+ *
+ * Палитра инсталлера сознательно отличается от tokens.css основного WebUI:
+ *   WebUI:      bg #0b0e14, accent #7cd0ff (cyan)
+ *   Installer:  bg #1a1d24, accent #3aa5ff (saturated blue)
+ *
+ * Это решение дизайн-команды — инсталлер «прохладнее» и читабельнее, чем
+ * dashboard. Не унифицируйте палитры без согласования.
+ *
+ * Источник: design_handoff_installer/installer-shared.jsx::installerTheme.
+ */
+
+:root[data-theme="dark"] {
+  --bg:            #1a1d24;
+  --panel:         #1f232b;
+  --panel-2:       #262b35;
+  --sidebar:       #15181e;
+  --chrome:        #13161c;
+  --border:        rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --fg:            #e3e8ef;
+  --dim:           #8a93a4;
+  --faint:         #4a5663;
+  --accent:        #3aa5ff;
+  --accent-dim:    rgba(58, 165, 255, 0.18);
+  --accent-hover:  #5eb6ff;
+  --score:         #5af28a;
+  --score-soft:    rgba(90, 242, 138, 0.10);
+  --grid:          rgba(58, 165, 255, 0.06);
+  --spark-a:       rgba(58, 165, 255, 0.18);
+  --spark-b:       rgba(90, 242, 138, 0.16);
+  --spark-c:       rgba(255, 181, 71, 0.14);
+  --wip-color:     #ffb547;
+  --wip-bg:        rgba(255, 181, 71, 0.10);
+  --close-hover:   #e81123;
+  --score-shadow:  0 0 24px rgba(90, 242, 138, 0.10);
+  --primary-shadow: 0 0 20px rgba(58, 165, 255, 0.18);
+  --outer-shadow:  0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-theme="light"] {
+  --bg:            #f4f6fa;
+  --panel:         #ffffff;
+  --panel-2:       #eef2f7;
+  --sidebar:       #e8edf3;
+  --chrome:        #dde3eb;
+  --border:        rgba(15, 23, 42, 0.10);
+  --border-strong: rgba(15, 23, 42, 0.22);
+  --fg:            #0f172a;
+  --dim:           #4a5568;
+  --faint:         #94a3b8;
+  --accent:        #2872d4;
+  --accent-dim:    rgba(40, 114, 212, 0.10);
+  --accent-hover:  #1f5fb8;
+  --score:         #15a866;
+  --score-soft:    rgba(21, 168, 102, 0.10);
+  --grid:          rgba(40, 114, 212, 0.06);
+  --spark-a:       rgba(40, 114, 212, 0.20);
+  --spark-b:       rgba(21, 168, 102, 0.18);
+  --spark-c:       rgba(217, 119, 87, 0.18);
+  --wip-color:     #d97757;
+  --wip-bg:        rgba(217, 119, 87, 0.10);
+  --close-hover:   #e81123;
+  --score-shadow:  none;
+  --primary-shadow: 0 2px 6px rgba(40, 114, 212, 0.18);
+  --outer-shadow:  0 24px 80px rgba(15, 23, 42, 0.18);
+}
+
+:root {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, 'Roboto', 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
+}
+
+/* Inter подгружаем локально для оффлайн-инсталла. Если в build/branding/fonts/
+ * нет файлов — браузер падает на Segoe UI / system-ui (см. --font-sans). */
+@font-face {
+  font-family: 'Inter';
+  src: local('Inter Regular'), local('InterRegular'),
+       url('../assets/fonts/Inter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: local('Inter Medium'), local('InterMedium'),
+       url('../assets/fonts/Inter-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: local('Inter SemiBold'), local('InterSemiBold'),
+       url('../assets/fonts/Inter-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: local('Inter Bold'), local('InterBold'),
+       url('../assets/fonts/Inter-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

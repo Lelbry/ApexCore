@@ -1,0 +1,71 @@
+"""Доменный слой: модели предметной области и порты (абстракции)."""
+
+from apexcore.domain.cache import (
+    CacheLevel,
+    CacheTopology,
+    RamCacheMetric,
+    RamCacheReport,
+)
+from apexcore.domain.models import (
+    BaselineProfile,
+    BenchmarkConfig,
+    BenchmarkResult,
+    CpuCores,
+    Diagnostic,
+    DiagnosticSeverity,
+    MetricSnapshot,
+    MicroBenchResult,
+    MicroBenchSuiteResult,
+    NormalizedScore,
+    OverallScore,
+    StressResult,
+    SystemInfo,
+    ThermalStabilityResult,
+)
+from apexcore.domain.ports import (
+    BaselineRepository,
+    MetricsBus,
+    MicroRunRepository,
+    OSAdapter,
+    ResultRepository,
+    StressEngine,
+    WinsatRepository,
+)
+from apexcore.domain.winsat import (
+    WinsatCategory,
+    WinsatReport,
+    WinsatStatus,
+    WinsatSubscore,
+)
+
+__all__ = [
+    "BaselineProfile",
+    "BaselineRepository",
+    "BenchmarkConfig",
+    "BenchmarkResult",
+    "CacheLevel",
+    "CacheTopology",
+    "CpuCores",
+    "Diagnostic",
+    "DiagnosticSeverity",
+    "MetricSnapshot",
+    "MetricsBus",
+    "MicroBenchResult",
+    "MicroBenchSuiteResult",
+    "MicroRunRepository",
+    "NormalizedScore",
+    "OSAdapter",
+    "OverallScore",
+    "RamCacheMetric",
+    "RamCacheReport",
+    "ResultRepository",
+    "StressEngine",
+    "StressResult",
+    "SystemInfo",
+    "ThermalStabilityResult",
+    "WinsatCategory",
+    "WinsatReport",
+    "WinsatRepository",
+    "WinsatStatus",
+    "WinsatSubscore",
+]

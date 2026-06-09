@@ -1,0 +1,297 @@
+/* Карточки, кнопки, контролы, чипы, sparkline */
+
+/* ─── Card ─────────────────────────────────────────────────────────── */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--gap-lg);
+}
+.card__title {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: var(--gap);
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+.card__title-tag {
+  font-size: 10px;
+  color: var(--muted-2);
+  background: var(--panel-2);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+/* ─── KPI ──────────────────────────────────────────────────────────── */
+.kpi {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--gap) var(--gap-lg);
+  display: flex;
+  flex-direction: column;
+}
+.kpi__label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-family: var(--font-mono);
+}
+.kpi__value {
+  font-size: 26px;
+  font-weight: 700;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.kpi__value.dim { color: var(--muted); font-weight: 500; font-size: 22px; }
+.kpi__sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+.kpi__spark {
+  margin-top: var(--gap-sm);
+  height: 38px;
+}
+
+/* ─── Status chip ──────────────────────────────────────────────────── */
+.chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-family: var(--font-mono);
+}
+.chip.idle    { background: var(--chip-bg);         color: var(--muted); }
+.chip.running { background: var(--chip-running-bg); color: var(--accent); }
+.chip.ok      { background: var(--chip-ok-bg);      color: var(--ok); }
+.chip.warn    { background: var(--chip-warn-bg);    color: var(--warn); }
+.chip.danger  { background: var(--chip-danger-bg);  color: var(--danger); }
+
+/* ─── Buttons ──────────────────────────────────────────────────────── */
+.btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.btn:hover { background: var(--panel-3); }
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn.primary {
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-border);
+  color: var(--btn-primary-color);
+}
+.btn.primary:hover { background: var(--btn-primary-bg-hover); }
+.btn.danger {
+  background: var(--btn-danger-bg);
+  border-color: var(--btn-danger-border);
+  color: var(--btn-danger-color);
+}
+.btn.danger:hover { background: var(--btn-danger-bg-hover); }
+.btn.lg {
+  padding: 14px 28px;
+  font-size: 15px;
+  font-weight: 500;
+}
+.btn.sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+/* ─── Forms ────────────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.field__label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-family: var(--font-mono);
+}
+.field__hint {
+  font-size: 11px;
+  color: var(--muted-2);
+  font-style: italic;
+}
+input[type="text"], input[type="number"], select, textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+input[readonly] {
+  background: var(--panel-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+/* Radio group as button list */
+.radio-group {
+  display: flex;
+  gap: 4px;
+  background: var(--panel-2);
+  padding: 4px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  width: max-content;
+}
+.radio-group label {
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  transition: background var(--transition), color var(--transition);
+  font-family: var(--font-mono);
+}
+.radio-group input[type="radio"] { display: none; }
+.radio-group input[type="radio"]:checked + span {
+  background: var(--accent);
+  color: var(--bg);
+}
+.radio-group span {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Lists / rows ─────────────────────────────────────────────────── */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gap);
+  font-size: 13px;
+  padding: 6px var(--gap-sm);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+.row:nth-child(odd) { background: var(--panel-2); }
+.row .k { color: var(--muted); }
+.row .v { font-variant-numeric: tabular-nums; }
+.row .v.hot  { color: var(--danger); }
+.row .v.warm { color: var(--warn); }
+.row .v.cool { color: var(--ok); }
+
+/* ─── Tables ───────────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+th { color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }
+
+/* ─── Sparkline / SVG charts ───────────────────────────────────────── */
+.spark {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.spark__line {
+  fill: none;
+  stroke-width: 1.5;
+  stroke: var(--accent);  /* fallback если inline style не задан */
+}
+.spark__area {
+  fill-opacity: 0.15;
+  stroke: none;
+  fill: var(--accent);    /* fallback если inline style не задан */
+}
+
+/* Текстовые и сеточные элементы графиков: пустое состояние («нет данных»),
+ * подписи осей, легенда, горизонтальные grid-линии. Цвета берутся из токенов
+ * темы — это критично для светлой темы (на белом фоне старый dark-grey
+ * `#252b3d` сетки превращался в почти-чёрную полосу). */
+.spark__empty-text { fill: var(--muted); }
+.spark__legend-text { fill: var(--text); }
+.spark__grid-line   { stroke: var(--border); }
+
+/* ─── Banner (info / warn) ─────────────────────────────────────────── */
+.banner {
+  border-radius: var(--radius);
+  padding: var(--gap) var(--gap-lg);
+  margin-bottom: var(--gap-lg);
+  font-size: 12px;
+  line-height: 1.6;
+  border: 1px solid;
+}
+.banner.info   { background: rgba(var(--accent-rgb), 0.08); border-color: var(--accent); color: var(--text-dim); }
+.banner.warn   { background: rgba(var(--warn-rgb),   0.08); border-color: var(--warn);   color: var(--text-dim); }
+.banner.danger { background: rgba(var(--danger-rgb), 0.08); border-color: var(--danger); color: var(--text-dim); }
+.banner b { color: var(--text); }
+.banner code {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+/* ─── Progress bar ─────────────────────────────────────────────────── */
+.progress {
+  width: 100%;
+  height: 8px;
+  background: var(--panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: var(--gap-sm) 0;
+}
+.progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-3));
+  transition: width 250ms ease-out;
+}
+
+/* ─── Big number (score) ───────────────────────────────────────────── */
+.score-big {
+  font-size: 48px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+.score-big.ok    { color: var(--ok); }
+.score-big.warn  { color: var(--warn); }
+.score-big.danger { color: var(--danger); }
+.score-big__unit {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: var(--gap-sm);
+}

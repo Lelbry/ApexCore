@@ -1,0 +1,50 @@
+# Shell-скрипты и Debian packaging ДОЛЖНЫ быть LF-only.
+# На Linux dash/bash интерпретируют CRLF в shebang как `/bin/sh\r` ->
+# "bad interpreter: No such file or directory". Файлы debian/postinst и т.п.
+# попадают на Astra-машину через dpkg-buildpackage + apt install.
+# Git autocrlf на Windows иначе конвертирует LF->CRLF при checkout.
+
+*.sh                   text eol=lf
+*.bash                 text eol=lf
+
+packaging/astra/debian/control          text eol=lf
+packaging/astra/debian/rules            text eol=lf
+packaging/astra/debian/postinst         text eol=lf
+packaging/astra/debian/prerm            text eol=lf
+packaging/astra/debian/postrm           text eol=lf
+packaging/astra/debian/changelog        text eol=lf
+packaging/astra/debian/copyright        text eol=lf
+packaging/astra/debian/compat           text eol=lf
+packaging/astra/debian/apexcore.wrapper text eol=lf
+packaging/astra/debian/apexcore.desktop text eol=lf
+packaging/astra/debian/source/format    text eol=lf
+
+# PowerShell — text mode (CRLF на Windows ок). Кириллица в .ps1 требует BOM.
+*.ps1                  text
+
+# Документация/исходники — стандартное (CRLF на Windows, LF на Linux ок).
+*.py                   text
+*.md                   text
+*.toml                 text
+*.iss                  text
+*.cs                   text
+*.xaml                 text
+*.csproj               text
+*.css                  text
+*.js                   text
+*.html                 text
+*.json                 text
+*.yaml                 text
+*.yml                  text
+
+# Бинарники — без конвертации.
+*.png                  binary
+*.ico                  binary
+*.bmp                  binary
+*.jpg                  binary
+*.gif                  binary
+*.dll                  binary
+*.exe                  binary
+*.msi                  binary
+*.woff2                binary
+*.woff                 binary

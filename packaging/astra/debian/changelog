@@ -1,0 +1,83 @@
+apexcore (1.0.0) unstable; urgency=medium
+
+  * Первый стабильный релиз под Astra Linux SE 1.8.5.46 «Орёл».
+  * Автономность .deb: внутрь пакета вшит relocatable CPython
+    (python-build-standalone) как /opt/apexcore/.venv — установка больше
+    не зависит от системного python3 и его версии.
+  * Wizard (первый запуск в браузере): экран завершения после «Завершить»
+    на Linux/браузерном сценарии; корректные Linux capabilities
+    (dmidecode → cap_dac_read_search, без лишней эскалации smartctl).
+  * Общая оценка системы: диск-бенч пишет в ~/.cache/apexcore-bench при
+    недоступном корне → итоговый балл и данные по диску теперь считаются.
+  * Стресс-тест: встроенные движки DGEMM + STREAM дают сопоставимые
+    GFLOPS/GB-с → отдельный итоговый балл стресса выводится корректно.
+  * Память: DGEMM в 1 python-поток + threadpoolctl, STREAM = logical//4
+    потоков → нет OOM-краша браузера на «Общей оценке».
+  * Web UI: устойчивость ленты прогонов и /api/trend к битой БД
+    (SQLITE_CORRUPT не роняет страницу — возвращается пустой тренд).
+  * Реальные данные железа в WebUI (boot-диск, объём/тип/частота ОЗУ)
+    вместо mock; убран устаревший единый «итоговый балл» micro.
+
+ -- lelbry <noreply@example.local>  Wed, 27 May 2026 12:00:00 +0000
+
+apexcore (0.9.1) unstable; urgency=medium
+
+  * Windows: исправления installer, web UI и Winsat (после live-теста v0.9.0).
+    - Installer: плавный прогресс-бар (time-based easing); запуск CLI с
+      финального экрана от администратора (полный Winsat).
+    - Web: фикс «Общей оценки» (сигнатура progress-callback), параллельный
+      стресс CPU+RAM с ThermalWatchdog (threadpoolctl оставляет ядра live-
+      топбару), редизайн «Расш. тест CPU», смягчение цветов «Общей оценки»,
+      фиксы Diagnose (repair temp-.ps1) и Истории (без балла у Расш. CPU).
+    - Winsat: графика/D3D в web через self-elevation (UAC); абзац-методика
+      гибридной оценки на web и в CLI.
+  * Новая зависимость: threadpoolctl (ограничение BLAS-потоков).
+
+ -- lelbry <noreply@example.local>  Wed, 27 May 2026 10:10:00 +0000
+
+apexcore (0.9.0) unstable; urgency=medium
+
+  * Rename: проект benchkit переименован в apexcore.
+    - Python-пакет src/benchkit → src/apexcore, CLI-команда benchkit → apexcore.
+    - Windows-сервис benchkit_sensord → apexcore_sensord, SHM namespace
+      Global\benchkit_sensors → Global\apexcore_sensors.
+    - ENV-prefix BENCHKIT_ → APEXCORE_ (config + roofline + sparkline + ...).
+    - Data dirs: %APPDATA%\benchkit → %APPDATA%\apexcore,
+      ~/.local/share/benchkit → ~/.local/share/apexcore.
+    - Debian-пакет benchkit → apexcore с Conflicts/Replaces/Provides
+      для атомарного upgrade через apt.
+  * Backward-compat (удалить в v0.10.0):
+    - CLI alias `benchkit` остаётся через [project.scripts] (deprecation
+      warning в stderr).
+    - ENV-shim: BENCHKIT_X → APEXCORE_X транслируются автоматически.
+    - /usr/bin/benchkit symlink → /usr/bin/apexcore.
+    - postinst: миграция ~/.local/share/benchkit → ~/.local/share/apexcore
+      для каждого реального пользователя в /home/.
+    - shared/config.py: миграция data-dir на старте (если новая пустая).
+  * Версия Python-пакета: 0.8.7 → 0.9.0 (pyproject.toml).
+  * Тесты: 1093 passed (+ test_data_dir_migration + test_env_translation),
+    0 регрессий.
+
+ -- lelbry <noreply@example.local>  Fri, 23 May 2026 00:00:00 +0300
+
+benchkit (0.8.7) unstable; urgency=medium
+
+  * Релиз под тестирование на Astra Linux 1.8.5 «Орёл защищенности»
+  * Phase 1+3+4 фиксы: libcap2-bin в Depends, polkit alternatives,
+    numpy<3, UTF-8 reconfigure CP1251 cmd.exe
+  * Phase 2 UI: license max-width, /api/history 4-в-1, Winsat hover-tooltip,
+    GPU sort discrete > integrated > virtual, Mock Progress 6 шагов,
+    bridge.platform динамика через probe-env
+  * Setup wizard: WIP-баннер убран с Welcome, dark theme default
+  * Кросс-shell: UTF-8 BOM для .ps1, .gitattributes eol=lf для debian/*
+
+ -- lelbry <noreply@example.local>  Thu, 22 May 2026 00:00:00 +0300
+
+benchkit (0.8.6) unstable; urgency=medium
+
+  * ApexCore-брендинг wizard'а и инсталлеров (Windows + Astra)
+  * Переход на self-contained .deb с embedded venv в /opt/benchkit/.venv
+  * Новый CLI: benchkit setup — first-run wizard в браузере
+  * Wheels поставляются внутри .deb (zero-touch установка)
+
+ -- lelbry <noreply@example.local>  Wed, 21 May 2026 00:00:00 +0300

@@ -1,0 +1,164 @@
+/* ApexCore design tokens.
+ *
+ * Палитра, шрифты, отступы, радиусы. Все остальные CSS-файлы
+ * используют только эти переменные — никаких хардкод-цветов.
+ *
+ * Темы: dark (по умолчанию) и light. Светлая нужна прежде всего для
+ * скриншотов в магистерскую (тёмный фон плохо печатается на бумаге)
+ * и для пользователей, работающих при ярком освещении. Переключение —
+ * через атрибут [data-theme] на <html> + js/theme.js + UI-переключатель
+ * в settings.
+ *
+ * Палитра light синхронизирована с инсталлером (см.
+ * packaging/windows/bootstrapper/.../tokens-installer.css) — accent
+ * #2872d4 (saturated blue), score #15a866 (green). Дашборд и инсталлер
+ * визуально согласованы, чтобы пользователь не получал контраст-шок при
+ * переходе. */
+
+:root,
+:root[data-theme="dark"] {
+  /* ─── Палитра (тёмная тема) ─────────────────────────────────────── */
+  --bg:        #0b0e14;
+  --panel:     #141824;
+  --panel-2:   #1b2030;
+  --panel-3:   #232a3d;
+  --border:    #252b3d;
+  --border-2:  #2f3650;
+  --text:      #e5e8ef;
+  --text-dim:  #b9c0cd;
+  --muted:     #8a93a4;
+  --muted-2:   #6b7484;
+
+  --accent:    #7cd0ff;
+  --accent-2:  #ffd47c;
+  --accent-3:  #c57cff;
+
+  --ok:        #7cff9f;
+  --warn:      #ffd47c;
+  --danger:    #ff7c7c;
+  --hot:       #ff9f7c;
+
+  --chip-bg:   #2a3045;
+
+  /* RGB-варианты для rgba()-фонов (banner, glow, hover-tint и пр.).
+   * Используются как: background: rgba(var(--accent-rgb), 0.08); */
+  --accent-rgb: 124, 208, 255;
+  --ok-rgb:     124, 255, 159;
+  --warn-rgb:   255, 212, 124;
+  --danger-rgb: 255, 124, 124;
+  --black-rgb:  0, 0, 0;
+  --white-rgb:  255, 255, 255;
+
+  /* Tint для subtle-highlight overlay (zebra-stripes в таблицах,
+   * выделение hover-row и т.п.). В тёмной теме это белый с альфой
+   * (даёт более светлый оттенок), в светлой — тёмный (даёт более
+   * тёмный оттенок). Используется как rgba(var(--overlay-tint), X). */
+  --overlay-tint: 255, 255, 255;
+
+  /* Цветные чипы статуса (chip.running / .ok / .warn / .danger).
+   * Темная тема: тёмный приглушённый фон + насыщенный foreground. */
+  --chip-running-bg: #1e4a6b;
+  --chip-ok-bg:      #1e6b3a;
+  --chip-warn-bg:    #6b5a1e;
+  --chip-danger-bg:  #6b1e1e;
+
+  /* Primary/danger кнопки — раньше захардкожены в components.css. */
+  --btn-primary-bg:        #1e4a6b;
+  --btn-primary-border:    #2a6a95;
+  --btn-primary-color:     #cce7ff;
+  --btn-primary-bg-hover:  #225a82;
+
+  --btn-danger-bg:         #5b1e1e;
+  --btn-danger-border:     #8b2e2e;
+  --btn-danger-color:      #ffd0d0;
+  --btn-danger-bg-hover:   #742525;
+
+  /* Полноэкранный overlay (ws-disconnect) — затемнение под прозрачным фоном. */
+  --overlay-bg: rgba(11, 14, 20, 0.92);
+
+  /* Тени */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow:    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="light"] {
+  /* ─── Палитра (светлая тема, печатно-дружественная) ─────────────── */
+  --bg:        #f4f6fa;
+  --panel:     #ffffff;
+  --panel-2:   #eef2f7;
+  --panel-3:   #dde3eb;
+  --border:    #d9dfe7;
+  --border-2:  #c0c8d4;
+  --text:      #0f172a;
+  --text-dim:  #1e293b;
+  --muted:     #475569;
+  --muted-2:   #64748b;
+
+  --accent:    #2872d4;
+  --accent-2:  #c47616;
+  --accent-3:  #7c3aed;
+
+  --ok:        #15a866;
+  --warn:      #b45309;
+  --danger:    #c0392b;
+  --hot:       #b91c1c;
+
+  --chip-bg:   #e2e8f0;
+
+  --accent-rgb: 40, 114, 212;
+  --ok-rgb:     21, 168, 102;
+  --warn-rgb:   180, 83, 9;
+  --danger-rgb: 192, 57, 43;
+  --black-rgb:  15, 23, 42;
+  --white-rgb:  255, 255, 255;
+
+  /* В светлой теме overlay-tint инвертируется — нужен тёмный для
+   * subtle-highlight на белом фоне (см. комментарий выше). */
+  --overlay-tint: 15, 23, 42;
+
+  /* Чипы статуса — soft-tinted backgrounds, насыщенный foreground.
+   * Контрастируют с белой бумагой при печати, читабельны на экране. */
+  --chip-running-bg: #dbeafe;
+  --chip-ok-bg:      #d1fae5;
+  --chip-warn-bg:    #fef3c7;
+  --chip-danger-bg:  #fee2e2;
+
+  --btn-primary-bg:        #2872d4;
+  --btn-primary-border:    #1f5fb8;
+  --btn-primary-color:     #ffffff;
+  --btn-primary-bg-hover:  #1f5fb8;
+
+  --btn-danger-bg:         #c0392b;
+  --btn-danger-border:     #9b2d22;
+  --btn-danger-color:      #ffffff;
+  --btn-danger-bg-hover:   #9b2d22;
+
+  --overlay-bg: rgba(244, 246, 250, 0.92);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --shadow:    0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+:root {
+  /* ─── Шрифты (системные, без CDN) ───────────────────────────────── */
+  --font-sans: -apple-system, "Segoe UI", system-ui, "Roboto", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Consolas", "Courier New", monospace;
+
+  /* ─── Геометрия ──────────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius:    8px;
+  --radius-lg: 12px;
+
+  --gap-xs:    4px;
+  --gap-sm:    8px;
+  --gap:       12px;
+  --gap-lg:    16px;
+  --gap-xl:    24px;
+
+  --chrome-topbar-h:    96px;
+  --chrome-sidebar-w:   220px;
+  --chrome-statusbar-h: 28px;
+
+  /* ─── Переходы ───────────────────────────────────────────────────── */
+  --transition: 120ms ease-out;
+}

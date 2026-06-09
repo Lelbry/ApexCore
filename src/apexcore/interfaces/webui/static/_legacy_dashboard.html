@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>apexcore — дашборд</title>
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --panel: #141824;
+            --panel-2: #1b2030;
+            --border: #252b3d;
+            --text: #e5e8ef;
+            --muted: #8a93a4;
+            --accent: #7cd0ff;
+            --accent-2: #ffd47c;
+            --danger: #ff7c7c;
+            --ok: #7cff9f;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, Segoe UI, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+        header { padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.3px; }
+        header .sys { font-size: 12px; color: var(--muted); text-align: right; line-height: 1.4; }
+        .layout { display: grid; grid-template-columns: minmax(460px, 1fr) minmax(420px, 1fr); gap: 12px; padding: 12px; height: calc(100vh - 54px); overflow: hidden; }
+        .pane { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; min-height: 0; }
+        .pane > header { background: transparent; border: none; padding: 10px 14px; font-weight: 600; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; justify-content: flex-start; }
+        .pane-body { padding: 0 14px 14px 14px; overflow: auto; flex: 1; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
+        .kpi { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+        .kpi .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi .value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+        .kpi .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .kpi canvas { display: block; margin-top: 6px; width: 100% !important; height: 42px !important; }
+        .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin: 14px 0 6px 0; }
+        .list { display: flex; flex-direction: column; gap: 4px; }
+        .row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 5px 8px; border-radius: 4px; }
+        .row:nth-child(odd) { background: var(--panel-2); }
+        .row .k { color: var(--muted); }
+        .row .v { font-variant-numeric: tabular-nums; }
+        .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+        select, input, button {
+            background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+            border-radius: 6px; padding: 6px 10px; font-size: 13px; font-family: inherit;
+        }
+        button { cursor: pointer; transition: background 0.15s; }
+        button:hover { background: #2a3045; }
+        button.primary { background: #1e4a6b; border-color: #2a6a95; color: #cce7ff; }
+        button.primary:hover { background: #225a82; }
+        button.danger { background: #5b1e1e; border-color: #8b2e2e; color: #ffd0d0; }
+        button.danger:hover { background: #742525; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .status-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-idle { background: #2a3045; color: var(--muted); }
+        .status-run { background: #1e4a6b; color: var(--accent); }
+        .status-ok { background: #1e6b3a; color: var(--ok); }
+        .status-err { background: #6b1e1e; color: var(--danger); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 5px 8px; text-align: left; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+        th { color: var(--muted); font-weight: 500; }
+        .big-chart { width: 100%; height: 220px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
+        .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+        .tab { padding: 8px 14px; cursor: pointer; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; }
+        .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .hot { color: var(--danger); }
+        .warm { color: var(--accent-2); }
+        .cool { color: var(--ok); }
+    </style>
+</head>
+<body>
+<header>
+    <h1>apexcore <span style="color: var(--muted); font-weight: 400;">— живой дашборд</span></h1>
+    <div class="sys" id="sysinfo">подключение…</div>
+</header>
+
+<div class="layout">
+    <!-- ЛЕВАЯ ПАНЕЛЬ: ключевые метрики + мини-тренды -->
+    <div class="pane">
+        <header>Ключевые метрики</header>
+        <div class="pane-body">
+            <div class="kpi-grid">
+                <div class="kpi">
+                    <div class="label">CPU</div>
+                    <div class="value" id="k-cpu">—</div>
+                    <div class="sub" id="k-cpu-sub">загрузка / частота</div>
+                    <canvas id="spark-cpu"></canvas>
+                </div>
+                <div class="kpi">
+                    <div class="label">RAM</div>
+                    <div class="value" id="k-ram">—</div>
+                    <div class="sub" id="k-ram-sub">использовано</div>
+                    <canvas id="spark-ram"></canvas>
+                </div>
+                <div class="kpi">
+                    <div class="label">T° CPU</div>
+                    <div class="value" id="k-tcpu">—</div>
+                    <div class="sub" id="k-tcpu-sub">°C</div>
+                    <canvas id="spark-tcpu"></canvas>
+                </div>
+                <div class="kpi">
+                    <div class="label">T° GPU</div>
+                    <div class="value" id="k-tgpu">—</div>
+                    <div class="sub" id="k-tgpu-sub">°C</div>
+                    <canvas id="spark-tgpu"></canvas>
+                </div>
+                <div class="kpi">
+                    <div class="label">Частота CPU (реальная)</div>
+                    <div class="value" id="k-freq">—</div>
+                    <div class="sub" id="k-freq-sub">МГц</div>
+                    <canvas id="spark-freq"></canvas>
+                </div>
+                <div class="kpi">
+                    <div class="label">T° максимум</div>
+                    <div class="value" id="k-tmax">—</div>
+                    <div class="sub" id="k-tmax-sub">°C (любой сенсор)</div>
+                    <canvas id="spark-tmax"></canvas>
+                </div>
+            </div>
+
+            <div class="section-title">Живой график (120 с)</div>
+            <canvas id="chart-live" class="big-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- ПРАВАЯ ПАНЕЛЬ: детали + управление -->
+    <div class="pane">
+        <div class="tabs">
+            <div class="tab active" data-tab="overview">Обзор</div>
+            <div class="tab" data-tab="stress">Стресс</div>
+            <div class="tab" data-tab="bench">Бенчмарк</div>
+            <div class="tab" data-tab="history">История</div>
+        </div>
+        <div class="pane-body">
+            <!-- Обзор: все температуры и частоты списком -->
+            <div class="tab-panel active" id="panel-overview">
+                <div class="section-title">Все температурные сенсоры</div>
+                <div class="list" id="temps-list"><div class="row"><span class="k">нет данных</span></div></div>
+
+                <div class="section-title">Частоты ядер</div>
+                <div class="list" id="freqs-list"><div class="row"><span class="k">нет данных</span></div></div>
+
+                <div class="section-title">Загрузка ядер</div>
+                <div class="list" id="cores-list"><div class="row"><span class="k">нет данных</span></div></div>
+
+                <div class="section-title">Диски и прочее</div>
+                <div class="list" id="misc-list"></div>
+            </div>
+
+            <!-- Стресс: включить/выключить -->
+            <div class="tab-panel" id="panel-stress">
+                <div class="controls">
+                    <select id="stress-engine"></select>
+                    <input type="number" id="stress-duration" value="60" min="5" max="3600" style="width: 80px;" title="Длительность, сек">
+                    <input type="number" id="stress-threads" value="0" min="0" max="256" style="width: 60px;" title="Потоков (0 = авто)">
+                    <button id="btn-stress-start" class="primary">Запустить</button>
+                    <button id="btn-stress-stop" class="danger">Остановить</button>
+                </div>
+                <div class="section-title">Статус</div>
+                <div class="list" id="stress-status"><div class="row"><span class="k">ожидание</span></div></div>
+                <div class="section-title" style="margin-top:16px;">Результат последнего запуска</div>
+                <div class="list" id="stress-result"><div class="row"><span class="k">—</span></div></div>
+            </div>
+
+            <!-- Бенчмарк: полный прогон -->
+            <div class="tab-panel" id="panel-bench">
+                <div class="controls">
+                    <select id="bench-profile"></select>
+                    <input type="number" id="bench-duration" value="30" min="5" max="600" style="width: 80px;" title="Длительность фазы, сек">
+                    <input type="number" id="bench-rate" value="0.5" min="0.1" max="5" step="0.1" style="width: 70px;" title="Интервал семпла, сек">
+                    <input type="number" id="bench-threads" value="0" min="0" max="256" style="width: 60px;" title="Потоков">
+                    <button id="btn-bench-start" class="primary">Начать бенчмарк</button>
+                </div>
+                <div class="section-title">Статус</div>
+                <div class="list" id="bench-status"><div class="row"><span class="k">ожидание</span></div></div>
+                <div class="section-title" style="margin-top:16px;">Тренд итогового балла</div>
+                <canvas id="chart-trend" class="big-chart"></canvas>
+            </div>
+
+            <!-- История прогонов -->
+            <div class="tab-panel" id="panel-history">
+                <table id="runs-table">
+                    <thead><tr><th>UUID</th><th>Профиль</th><th>Старт</th><th>Длит.</th><th>Балл</th><th>Статус</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const MAX_POINTS = 120;
+const live = {
+    labels: [], cpu: [], ram: [], freq: [], tmax: [], tcpu: [], tgpu: []
+};
+
+// ────────── Утилиты ──────────
+const $ = s => document.querySelector(s);
+const fmt = (v, d = 1) => (v === null || v === undefined || isNaN(v)) ? '—' : Number(v).toFixed(d);
+
+function pushCapped(arr, val) {
+    arr.push(val);
+    if (arr.length > MAX_POINTS) arr.shift();
+}
+
+function tempClass(v) {
+    if (v == null) return '';
+    if (v >= 85) return 'hot';
+    if (v >= 70) return 'warm';
+    return 'cool';
+}
+
+function classifyTemp(key) {
+    const k = (key || '').toLowerCase();
+    if (k.includes('gpu') || k.includes('videocard') || k.includes('graphics')) return 'gpu';
+    if (k.includes('cpu') || k.includes('core') || k.includes('package') || k.includes('tctl') || k.includes('tdie') || k.includes('processor')) return 'cpu';
+    return 'other';
+}
+
+// ────────── Спарклайны (мини-графики в KPI) ──────────
+function makeSpark(canvasId, color) {
+    return new Chart($('#' + canvasId), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{ data: [], borderColor: color, backgroundColor: color + '22',
+                         fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5 }]
+        },
+        options: {
+            animation: false, responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: false }, y: { display: false } }
+        }
+    });
+}
+
+const sparks = {
+    cpu: makeSpark('spark-cpu', '#7cd0ff'),
+    ram: makeSpark('spark-ram', '#ffd47c'),
+    tcpu: makeSpark('spark-tcpu', '#ff9f7c'),
+    tgpu: makeSpark('spark-tgpu', '#7cff9f'),
+    freq: makeSpark('spark-freq', '#c57cff'),
+    tmax: makeSpark('spark-tmax', '#ff7c7c'),
+};
+
+function updateSpark(spark, arr) {
+    spark.data.labels = arr.map((_, i) => i);
+    spark.data.datasets[0].data = arr;
+    spark.update('none');
+}
+
+// ────────── Большой живой график ──────────
+const liveChart = new Chart($('#chart-live'), {
+    type: 'line',
+    data: {
+        labels: live.labels,
+        datasets: [
+            { label: 'CPU %', data: live.cpu, borderColor: '#7cd0ff', tension: 0.2, pointRadius: 0, yAxisID: 'y' },
+            { label: 'RAM %', data: live.ram, borderColor: '#ffd47c', tension: 0.2, pointRadius: 0, yAxisID: 'y' },
+            { label: 'T°max', data: live.tmax, borderColor: '#ff7c7c', tension: 0.2, pointRadius: 0, yAxisID: 'y2' },
+            { label: 'Freq МГц', data: live.freq, borderColor: '#c57cff', tension: 0.2, pointRadius: 0, yAxisID: 'y2', borderDash: [4, 4] },
+        ]
+    },
+    options: {
+        animation: false, responsive: true, maintainAspectRatio: false,
+        scales: {
+            y: { position: 'left', min: 0, max: 100, ticks: { color: '#8a93a4', font: { size: 10 } }, grid: { color: '#252b3d' } },
+            y2: { position: 'right', ticks: { color: '#8a93a4', font: { size: 10 } }, grid: { display: false } },
+            x: { ticks: { color: '#8a93a4', maxRotation: 0, autoSkip: true, maxTicksLimit: 8, font: { size: 10 } }, grid: { color: '#252b3d' } }
+        },
+        plugins: { legend: { labels: { color: '#e5e8ef', font: { size: 11 }, boxWidth: 12 } } }
+    }
+});
+
+// ────────── Тренд ──────────
+const trendChart = new Chart($('#chart-trend'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+        { label: 'балл', data: [], borderColor: '#7cd0ff', tension: 0.2 },
+        { label: 'rolling μ', data: [], borderColor: '#ffd47c', borderDash: [5, 5], tension: 0.1 },
+        { label: 'rolling p95', data: [], borderColor: '#ff7c7c', borderDash: [2, 2], tension: 0.1 },
+    ] },
+    options: {
+        animation: false, responsive: true, maintainAspectRatio: false,
+        scales: { x: { ticks: { color: '#8a93a4', font: { size: 10 } } },
+                  y: { ticks: { color: '#8a93a4', font: { size: 10 } } } },
+        plugins: { legend: { labels: { color: '#e5e8ef', font: { size: 11 } } } }
+    }
+});
+
+// ────────── Обработка живого снапшота ──────────
+function onSnapshot(snap) {
+    const ts = new Date(snap.timestamp).toLocaleTimeString();
+    pushCapped(live.labels, ts);
+    pushCapped(live.cpu, snap.cpu_percent);
+    pushCapped(live.ram, snap.ram_percent);
+    const freq = snap.frequencies?.cpu_avg;
+    pushCapped(live.freq, freq || null);
+
+    const temps = snap.temperatures || {};
+    const vals = Object.values(temps);
+    const tmax = vals.length ? Math.max(...vals) : null;
+    pushCapped(live.tmax, tmax);
+
+    // Разделяем CPU/GPU температуры
+    let tcpu = null, tgpu = null;
+    for (const [k, v] of Object.entries(temps)) {
+        const c = classifyTemp(k);
+        if (c === 'cpu' && (tcpu == null || v > tcpu)) tcpu = v;
+        if (c === 'gpu' && (tgpu == null || v > tgpu)) tgpu = v;
+    }
+    pushCapped(live.tcpu, tcpu);
+    pushCapped(live.tgpu, tgpu);
+
+    // KPI-блоки
+    $('#k-cpu').textContent = fmt(snap.cpu_percent) + '%';
+    $('#k-cpu-sub').textContent = 'ядер: ' + (snap.cpu_per_core_percent?.length || 0);
+    $('#k-ram').textContent = fmt(snap.ram_percent) + '%';
+    $('#k-ram-sub').textContent = fmt(snap.ram_used_gb, 2) + ' ГБ';
+    $('#k-tcpu').textContent = fmt(tcpu);
+    $('#k-tcpu').className = 'value ' + tempClass(tcpu);
+    $('#k-tgpu').textContent = fmt(tgpu);
+    $('#k-tgpu').className = 'value ' + tempClass(tgpu);
+    $('#k-tmax').textContent = fmt(tmax);
+    $('#k-tmax').className = 'value ' + tempClass(tmax);
+    $('#k-freq').textContent = fmt(freq, 0);
+    const base = snap.frequencies?.cpu_base;
+    $('#k-freq-sub').textContent = base ? `база ${fmt(base, 0)} МГц` : 'МГц';
+
+    updateSpark(sparks.cpu, live.cpu);
+    updateSpark(sparks.ram, live.ram);
+    updateSpark(sparks.tcpu, live.tcpu);
+    updateSpark(sparks.tgpu, live.tgpu);
+    updateSpark(sparks.freq, live.freq);
+    updateSpark(sparks.tmax, live.tmax);
+    liveChart.update('none');
+
+    renderDetailPanels(snap);
+}
+
+function renderDetailPanels(snap) {
+    // Температуры
+    const temps = snap.temperatures || {};
+    const tempsHtml = Object.keys(temps).length === 0
+        ? '<div class="row"><span class="k">нет доступных сенсоров</span></div>'
+        : Object.entries(temps)
+            .sort(([, a], [, b]) => b - a)
+            .map(([k, v]) => `<div class="row"><span class="k">${k}</span><span class="v ${tempClass(v)}">${fmt(v)} °C</span></div>`)
+            .join('');
+    $('#temps-list').innerHTML = tempsHtml;
+
+    // Частоты
+    const freqs = snap.frequencies || {};
+    const freqRows = Object.entries(freqs)
+        .filter(([k]) => !k.startsWith('cpu_'))
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
+    const freqHtml = freqRows.length === 0
+        ? '<div class="row"><span class="k">per-core недоступно</span></div>'
+        : freqRows.map(([k, v]) => `<div class="row"><span class="k">${k}</span><span class="v">${fmt(v, 0)} МГц</span></div>`).join('');
+    let freqHeader = '';
+    if (freqs.cpu_avg) {
+        const base = freqs.cpu_base ? ` (база ${fmt(freqs.cpu_base, 0)})` : '';
+        freqHeader = `<div class="row"><span class="k">cpu_avg</span><span class="v">${fmt(freqs.cpu_avg, 0)} МГц${base}</span></div>`;
+    }
+    $('#freqs-list').innerHTML = freqHeader + freqHtml;
+
+    // Ядра загрузка
+    const cores = snap.cpu_per_core_percent || [];
+    $('#cores-list').innerHTML = cores.length === 0
+        ? '<div class="row"><span class="k">нет данных</span></div>'
+        : cores.map((v, i) => `<div class="row"><span class="k">core ${i}</span><span class="v">${fmt(v)}%</span></div>`).join('');
+
+    // Прочее
+    $('#misc-list').innerHTML =
+        `<div class="row"><span class="k">disk read</span><span class="v">${fmt(snap.disk_read_mb, 2)} МБ</span></div>` +
+        `<div class="row"><span class="k">disk write</span><span class="v">${fmt(snap.disk_write_mb, 2)} МБ</span></div>` +
+        `<div class="row"><span class="k">troттлинг</span><span class="v">${snap.cpu_throttled ? '<span class="hot">да</span>' : 'нет'}</span></div>`;
+}
+
+// ────────── WebSocket ──────────
+function connect() {
+    const ws = new WebSocket(`ws://${location.host}/ws/metrics`);
+    ws.onmessage = e => { try { onSnapshot(JSON.parse(e.data)); } catch(err) { console.error(err); } };
+    ws.onclose = () => setTimeout(connect, 1000);
+    ws.onerror = () => ws.close();
+}
+
+// ────────── API-хелперы ──────────
+async function apiGet(url) { const r = await fetch(url); return r.json(); }
+async function apiPost(url, body) {
+    const r = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+    if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${r.status}`);
+    }
+    return r.json();
+}
+
+// ────────── Системная инфа ──────────
+async function loadSystem() {
+    const j = await apiGet('/api/system');
+    $('#sysinfo').innerHTML = `<b>${j.cpu_model}</b><br>${j.os_name} ${j.os_version || ''} · ` +
+        `${j.cpu_cores.physical}/${j.cpu_cores.logical} ядер · ${j.ram_total_gb.toFixed(1)} ГБ`;
+}
+
+// ────────── История ──────────
+async function loadRuns() {
+    const runs = await apiGet('/api/runs?limit=20');
+    const tb = document.querySelector('#runs-table tbody');
+    tb.innerHTML = '';
+    runs.forEach(run => {
+        const tr = document.createElement('tr');
+        const dur = ((new Date(run.end_time) - new Date(run.start_time))/1000).toFixed(0);
+        tr.innerHTML = `<td title="${run.id}">${run.id.slice(0,8)}…</td><td>${run.profile_name}</td>` +
+                       `<td>${new Date(run.start_time).toLocaleString()}</td>` +
+                       `<td>${dur}с</td><td>${run.final_score.toFixed(3)}</td><td>${run.status}</td>`;
+        tb.appendChild(tr);
+    });
+}
+
+// ────────── Тренд ──────────
+async function loadTrend() {
+    try {
+        const j = await apiGet('/api/trend?metric=final_score&last=30&window=5');
+        trendChart.data.labels = j.timestamps.map(t => new Date(t).toLocaleDateString());
+        trendChart.data.datasets[0].data = j.values;
+        trendChart.data.datasets[1].data = j.rolling_mean;
+        trendChart.data.datasets[2].data = j.rolling_p95;
+        trendChart.update();
+    } catch (e) { /* no data yet */ }
+}
+
+// ────────── Стресс-панель ──────────
+async function loadStressEngines() {
+    const list = await apiGet('/api/stress/list');
+    const sel = $('#stress-engine');
+    sel.innerHTML = list
+        .filter(e => e.available)
+        .map(e => `<option value="${e.name}">${e.name} — ${e.category}${e.is_external ? ' [ext]' : ''}</option>`)
+        .join('');
+}
+
+async function refreshStressStatus() {
+    const s = await apiGet('/api/stress/status');
+    const chip = s.running
+        ? `<span class="status-chip status-run">выполняется</span>`
+        : `<span class="status-chip status-idle">простой</span>`;
+    const rows = [
+        `<div class="row"><span class="k">статус</span><span class="v">${chip}</span></div>`,
+        `<div class="row"><span class="k">движок</span><span class="v">${s.engine || '—'}</span></div>`,
+        `<div class="row"><span class="k">старт</span><span class="v">${s.started_at ? new Date(s.started_at).toLocaleTimeString() : '—'}</span></div>`,
+    ];
+    $('#stress-status').innerHTML = rows.join('');
+
+    if (s.last_result) {
+        const r = s.last_result;
+        if (r.error) {
+            $('#stress-result').innerHTML = `<div class="row"><span class="k">ошибка</span><span class="v hot">${r.error}</span></div>`;
+        } else {
+            $('#stress-result').innerHTML =
+                `<div class="row"><span class="k">движок</span><span class="v">${r.engine}</span></div>` +
+                `<div class="row"><span class="k">длительность</span><span class="v">${fmt(r.duration_sec, 2)} с</span></div>` +
+                `<div class="row"><span class="k">потоков</span><span class="v">${r.threads}</span></div>` +
+                `<div class="row"><span class="k">throughput</span><span class="v">${fmt(r.throughput, 2)} ${r.throughput_unit}</span></div>`;
+        }
+    }
+    $('#btn-stress-start').disabled = s.running;
+    $('#btn-stress-stop').disabled = !s.running;
+}
+
+$('#btn-stress-start').onclick = async () => {
+    try {
+        await apiPost('/api/stress/start', {
+            engine: $('#stress-engine').value,
+            duration_sec: parseFloat($('#stress-duration').value),
+            threads: parseInt($('#stress-threads').value),
+        });
+        refreshStressStatus();
+    } catch (e) { alert('Ошибка старта: ' + e.message); }
+};
+$('#btn-stress-stop').onclick = async () => {
+    await apiPost('/api/stress/stop', {});
+    refreshStressStatus();
+};
+
+// ────────── Бенчмарк ──────────
+async function loadBenchProfiles() {
+    const list = await apiGet('/api/bench/profiles');
+    $('#bench-profile').innerHTML = list.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+async function refreshBenchStatus() {
+    const s = await apiGet('/api/bench/status');
+    let chip;
+    if (s.running) chip = '<span class="status-chip status-run">выполняется</span>';
+    else if (s.status === 'completed') chip = '<span class="status-chip status-ok">готово</span>';
+    else if (s.status === 'failed') chip = '<span class="status-chip status-err">ошибка</span>';
+    else chip = '<span class="status-chip status-idle">ожидание</span>';
+
+    $('#bench-status').innerHTML =
+        `<div class="row"><span class="k">статус</span><span class="v">${chip}</span></div>` +
+        `<div class="row"><span class="k">job_id</span><span class="v">${s.job_id ? s.job_id.slice(0,8) + '…' : '—'}</span></div>` +
+        `<div class="row"><span class="k">старт</span><span class="v">${s.started_at ? new Date(s.started_at).toLocaleTimeString() : '—'}</span></div>` +
+        `<div class="row"><span class="k">результат</span><span class="v">${s.result_id ? s.result_id.slice(0,8) + '…' : '—'}</span></div>` +
+        (s.error ? `<div class="row"><span class="k">ошибка</span><span class="v hot">${s.error}</span></div>` : '');
+
+    $('#btn-bench-start').disabled = s.running;
+    if (s.status === 'completed') { loadRuns(); loadTrend(); }
+}
+
+$('#btn-bench-start').onclick = async () => {
+    try {
+        await apiPost('/api/bench/start', {
+            profile: $('#bench-profile').value,
+            duration_sec: parseFloat($('#bench-duration').value),
+            rate_sec: parseFloat($('#bench-rate').value),
+            threads: parseInt($('#bench-threads').value),
+        });
+        refreshBenchStatus();
+    } catch (e) { alert('Ошибка старта бенчмарка: ' + e.message); }
+};
+
+// ────────── Табы ──────────
+document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        document.querySelector('#panel-' + t.dataset.tab).classList.add('active');
+    };
+});
+
+// ────────── Старт ──────────
+loadSystem();
+loadRuns();
+loadTrend();
+loadStressEngines();
+loadBenchProfiles();
+refreshStressStatus();
+refreshBenchStatus();
+connect();
+setInterval(refreshStressStatus, 2000);
+setInterval(refreshBenchStatus, 2000);
+setInterval(loadRuns, 15000);
+</script>
+</body>
+</html>

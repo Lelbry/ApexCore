@@ -1,0 +1,27 @@
+# apexcore weights profile: default
+#
+# Equal subsystem weighting + equal intra-category weighting.
+# Обоснование: OECD/JRC Handbook on Constructing Composite Indicators
+# (Nardo et al., DOI 10.1787/9789264043466-en) — equal weights рекомендуется
+# как дефолт когда нет эмпирической или сценарно-специфической базы.
+#
+# Структура весов соответствует иерархии scoring_v2.md §5:
+#   subsystem_weights: между R_MEM и R_CPU_compute
+#   compute_category_weights: между r_flops, r_integer, r_crypto, r_fractal
+#                             (внутри R_CPU_compute)
+
+name: "default"
+version: "1.0.0"
+description: "Equal subsystem and intra-category weights; safe default for general-purpose use."
+created_at: "2026-05-06"
+source: "default-equal"
+
+subsystem_weights:
+  R_MEM: 1.0
+  R_CPU_compute: 1.0
+
+compute_category_weights:
+  r_flops: 1.0
+  r_integer: 1.0
+  r_crypto: 1.0
+  r_fractal: 1.0

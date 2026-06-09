@@ -1,0 +1,52 @@
+Source: apexcore
+Section: science
+Priority: optional
+Maintainer: lelbry <noreply@example.local>
+Build-Depends: debhelper-compat (= 13),
+               python3 (>= 3.11),
+               python3-pip,
+               imagemagick,
+               dh-python
+Standards-Version: 4.6.0
+Homepage: https://github.com/Lelbry/apexcore
+Rules-Requires-Root: no
+
+# apexcore бандлит собственный relocatable CPython 3.11 в /opt/apexcore/.venv
+# (python-build-standalone) вместе с cp311-колёсами. Поэтому НЕТ зависимости от
+# системного python3 вообще — пакет работает на любой Astra/Debian независимо
+# от версии системного Python. См. debian/rules + docs/Astra/problems_fixes.md #22.
+Package: apexcore
+Architecture: amd64
+Depends: ${misc:Depends},
+         stress-ng,
+         sysbench,
+         lm-sensors,
+         smartmontools,
+         pciutils,
+         dmidecode,
+         util-linux,
+         x11-utils,
+         libcap2-bin,
+         policykit-1 | polkit
+Recommends: linux-headers-generic
+Suggests: nvidia-driver, firmware-amd-graphics
+# Backward-compat: пакет назывался `benchkit` до v0.9.0. Conflicts/Replaces/
+# Provides позволяют `apt install apexcore` атомарно заменить старый benchkit
+# на новый apexcore (apt снимает benchkit перед установкой apexcore).
+# Provides: позволяет существующим downstream-пакетам с `Depends: benchkit`
+# по-прежнему резолвиться. Удалить в v0.10.0.
+Conflicts: benchkit (<< 0.9.0)
+Replaces: benchkit (<< 0.9.0)
+Provides: benchkit (= ${binary:Version})
+Description: ApexCore — комплексная оценка производительности компьютера
+ Кроссплатформенный (Windows / Astra Linux) CLI-инструмент с веб-интерфейсом
+ ApexCore для бенчмаркинга, термо-стресса и статистической диагностики
+ производительности. Использует Roofline-модель, геометрическое среднее
+ sub-баллов, стресс-тесты на базе stress-ng и собственных DGEMM/STREAM
+ движков. Хранилище — SQLite, телеметрия — psutil + lm-sensors + smartctl
+ + pynvml.
+ .
+ На Astra Linux устанавливается в /opt/apexcore/ с собственным Python venv
+ (numpy/scipy/pydantic/fastapi внутри). Системные репозитории не требуются
+ кроме Python 3.11 base. Завершение настройки — через wizard в браузере:
+ `apexcore setup`.

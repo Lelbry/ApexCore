@@ -1,0 +1,33 @@
+#!/bin/sh
+# Post-removal hook для ApexCore.
+# При `apt purge` — чистим /opt/apexcore/.venv (он создан в postinst-like
+# фазе override_dh_auto_install, а не как файл, поэтому dpkg сам не удалит).
+
+set -e
+
+case "$1" in
+    purge)
+        # Удалить остаточный venv (там pip-сгенерированные __pycache__).
+        if [ -d /opt/apexcore ]; then
+            rm -rf /opt/apexcore
+        fi
+        # Backward-compat: если v0.8.x оставил /opt/benchkit/, тоже чистим
+        # (на случай ручной установки старого .deb после нового).
+        if [ -d /opt/benchkit ]; then
+            rm -rf /opt/benchkit
+        fi
+        # Обновить кэш иконок после удаления хроникол-иконок hicolor.
+        if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+            gtk-update-icon-cache -q /usr/share/icons/hicolor/ 2>/dev/null || true
+        fi
+        ;;
+    remove)
+        # Чистим только venv (config /etc и user-данные оставляем для apt remove).
+        if [ -d /opt/apexcore/.venv ]; then
+            rm -rf /opt/apexcore/.venv
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

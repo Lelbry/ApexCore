@@ -1,0 +1,60 @@
+# Калибровочные пороги Winsat-аналога.
+#
+# Формат: для каждой подкатегории — список пар (value, score).
+# Алгоритм:
+#   - value <= points[0].value → score = 1.0
+#   - value >= points[-1].value → score = 9.9
+#   - между точками — линейная интерполяция по log2(value).
+#
+# Пороги откалиброваны под скриншот пользователя (Ryzen 5/7 + Gen3 NVMe →
+# CPU 9.5 / Mem 9.5 / Disk 8.7) + публичные обзоры. После прогонов на
+# нескольких машинах возможно потребуется подкрутить — тогда увеличить version.
+
+version: 1
+
+cpu:
+  metric: "harmonic_mean(aes_256, sha1)"
+  unit: "MB/s"
+  points:
+    - { value: 200,    score: 1.0 }
+    - { value: 800,    score: 3.0 }
+    - { value: 3200,   score: 5.0 }
+    - { value: 12800,  score: 7.0 }
+    - { value: 51200,  score: 9.0 }
+    - { value: 76800,  score: 9.5 }   # типичный Ryzen 5/7 (Zen 3+)
+    - { value: 102400, score: 9.9 }
+
+memory:
+  metric: "memory_read"
+  unit: "MB/s"
+  points:
+    - { value: 2000,   score: 1.0 }
+    - { value: 8000,   score: 3.0 }
+    - { value: 18000,  score: 5.0 }
+    - { value: 32000,  score: 7.0 }
+    - { value: 48000,  score: 9.0 }
+    - { value: 55000,  score: 9.5 }   # DDR4-3200 dual-channel
+    - { value: 80000,  score: 9.9 }
+
+disk_sequential_read:
+  metric: "disk_seq_read"
+  unit: "MB/s"
+  points:
+    - { value: 50,    score: 1.0 }    # старый HDD
+    - { value: 350,   score: 5.0 }    # SATA SSD
+    - { value: 1000,  score: 7.0 }    # NVMe entry
+    - { value: 3500,  score: 8.7 }    # типичный Gen3 NVMe
+    - { value: 7000,  score: 9.5 }    # Gen4
+    - { value: 12000, score: 9.9 }    # Gen5
+
+disk_random_read:
+  metric: "disk_random_read"
+  unit: "MB/s"
+  points:
+    - { value: 1,    score: 1.0 }     # HDD random
+    - { value: 50,   score: 4.0 }
+    - { value: 150,  score: 5.0 }     # SATA SSD random
+    - { value: 600,  score: 7.0 }
+    - { value: 1800, score: 8.7 }
+    - { value: 3500, score: 9.5 }
+    - { value: 5000, score: 9.9 }

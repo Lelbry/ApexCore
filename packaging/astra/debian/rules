@@ -1,0 +1,100 @@
+#!/usr/bin/make -f
+# Self-contained .deb для ApexCore на Astra Linux 1.8+.
+#
+# Подход: бандлим relocatable CPython (python-build-standalone) в
+# /opt/apexcore/.venv и ставим в него зависимости из ../wheels/ оффлайн.
+# Раньше тут был venv от СИСТЕМНОГО python3 — он оказался непереносим:
+#   * shebang консольных скриптов указывал на build-staging путь
+#     (debian/apexcore/...), которого на чужой машине нет → «bad interpreter»;
+#   * bin/python3 → /usr/bin/python3 → жёсткая привязка к системному 3.11.
+# Standalone-питон самодостаточен (свой интерпретатор + stdlib) и работает
+# на любой машине без системного python. См. docs/Astra/problems_fixes.md #22.
+
+# DEB_BUILD_OPTIONS — стандартный механизм отключения debhelper-ов через env.
+# Дублирует override_dh_* ниже, но работает даже если override не подхватился
+# (например при ручном dpkg-buildpackage без debhelper). Особенно важно
+# 'nodwz' — иначе dh_dwz пытается обработать .so из pre-built manylinux
+# wheels (numpy/scipy) и падает с 'returned exit code 1'.
+export DEB_BUILD_OPTIONS = nostrip nodwz noddebs
+
+PKG := apexcore
+DESTDIR := $(CURDIR)/debian/$(PKG)
+TARGET := $(DESTDIR)/opt/$(PKG)
+WHEELS := $(CURDIR)/wheels
+BRANDING := $(CURDIR)/build/branding
+PYSTANDALONE := $(CURDIR)/python-standalone/python
+
+%:
+	dh $@
+
+# Python-код собирать не нужно — мы ставим из wheels в override_dh_auto_install.
+override_dh_auto_build:
+	@true
+
+override_dh_auto_test:
+	@true
+
+override_dh_auto_install:
+	# 1. Бандлим relocatable CPython КАК /opt/apexcore/.venv (имя сохранено
+	#    ради совместимости путей — wrapper/sanity-чеки на него опираются).
+	mkdir -p $(TARGET)
+	test -x $(PYSTANDALONE)/bin/python3 || \
+	    { echo "[!] нет $(PYSTANDALONE) — запустите scripts/fetch_python_standalone.sh" >&2; exit 1; }
+	rm -rf $(TARGET)/.venv
+	cp -a $(PYSTANDALONE)/. $(TARGET)/.venv/
+	# 2. Ставим зависимости (и сам apexcore) из локальных wheels.
+	#    --no-index гарантирует оффлайн-сборку (никаких внешних PyPI).
+	$(TARGET)/.venv/bin/python3 -m pip install --no-index --find-links=$(WHEELS) \
+	    'apexcore[fast,webui]'
+	# 2b. Фиксим shebang консольных скриптов на РАНТАЙМ-путь: pip пишет
+	#     build-staging путь ($(TARGET)/.venv/bin/python3), которого на чужой
+	#     машине нет. Трогаем только текстовые скрипты с python-shebang —
+	#     бинарь интерпретатора не трогаем.
+	for f in $(TARGET)/.venv/bin/*; do \
+	    if [ -f "$$f" ] && head -1 "$$f" 2>/dev/null | grep -q '^#!.*python'; then \
+	        sed -i "1s|^#!.*|#!/opt/apexcore/.venv/bin/python3|" "$$f"; \
+	    fi; \
+	done
+	# 3. Wrapper в /usr/bin/apexcore (НЕ /usr/local/bin — туда кладёт только
+	# локальный админ, не пакеты; dh_usrlocal по Debian Policy блокирует это).
+	install -D -m 755 debian/apexcore.wrapper $(DESTDIR)/usr/bin/apexcore
+	# 3b. Backward-compat: /usr/bin/benchkit symlink на /usr/bin/apexcore.
+	# Пользовательские скрипты с `benchkit ...` продолжают работать на 1 релиз.
+	# Удалить в v0.10.0 — здесь и в Conflicts/Replaces/Provides в control.
+	ln -sf apexcore $(DESTDIR)/usr/bin/benchkit
+	# 4. .desktop launcher
+	install -D -m 644 debian/apexcore.desktop \
+	    $(DESTDIR)/usr/share/applications/apexcore.desktop
+	# 5. Иконки hicolor (если build/branding/* есть; иначе пропускаем).
+	@if [ -d "$(BRANDING)" ]; then \
+	    for size in 32 48 64 128 256; do \
+	        if [ -f "$(BRANDING)/apex-logo-$$size.png" ]; then \
+	            install -D -m 644 "$(BRANDING)/apex-logo-$$size.png" \
+	                "$(DESTDIR)/usr/share/icons/hicolor/$${size}x$${size}/apps/apexcore.png"; \
+	        fi; \
+	    done; \
+	fi
+
+# Не запускать dh_python3 — у нас собственный бандл-питон, dh_python3 будет
+# конфликтовать (попробует упаковать .py как обычный python3-* пакет).
+override_dh_python3:
+	@true
+
+# Self-contained CPython + pre-built manylinux wheels — все debhelper'ы, которые
+# работают с native binaries, должны быть отключены. Они либо ничего не сделают
+# (dh_shlibdeps / dh_strip — wheels уже stripped), либо упадут на DWARF/permissions
+# (dh_dwz, dh_fixperms на venv .so могут сломать valid binaries).
+override_dh_strip:
+	@true
+override_dh_shlibdeps:
+	@true
+override_dh_dwz:
+	@true
+override_dh_strip_nondeterminism:
+	@true
+override_dh_makeshlibs:
+	@true
+
+# dh_compress сжимает .py / .pyc в venv → ломает import paths.
+override_dh_compress:
+	@true

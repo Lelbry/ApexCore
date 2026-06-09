@@ -1,0 +1,340 @@
+/* Per-step layouts. */
+
+.step {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Welcome / Done ────────────────────────────────────────────────────── */
+
+.step-welcome,
+.step-done {
+  max-width: 540px;
+}
+.step-welcome__included {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 26px;
+  padding: 14px 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  max-width: 460px;
+}
+.step-welcome__included-title {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+.step-welcome__included-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: var(--fg);
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.step-welcome__included-row .check {
+  color: var(--score);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.step-welcome__footnote {
+  margin-top: 22px;
+  font-size: 11px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+/* ─── License ───────────────────────────────────────────────────────────── */
+
+.step-license__text {
+  margin-top: 16px;
+  height: 240px;
+  max-width: 620px;       /* фикс 2.1: по design handoff, без этого блок
+                              растягивается на всю ширину content (~1320px) */
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  padding: 14px 18px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--dim);
+}
+.step-license__text strong {
+  color: var(--fg);
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.step-license__accept {
+  margin-top: 14px;
+}
+
+/* ─── Location ──────────────────────────────────────────────────────────── */
+
+.step-location__path-label {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  margin-top: 22px;
+  margin-bottom: 8px;
+}
+.step-location__path-row {
+  display: flex;
+  gap: 8px;
+}
+.step-location__stats {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.step-location__stat {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.step-location__stat-label {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+.step-location__stat-value {
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.step-location__stat-value--score {
+  color: var(--score);
+}
+.step-location__stat-value--dim {
+  color: var(--dim);
+}
+.step-location__warning {
+  margin-top: 24px;
+}
+
+/* ─── Components ────────────────────────────────────────────────────────── */
+
+.step-components__list {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  padding: 4px 18px;
+}
+.step-components__divider {
+  border-top: 1px dashed var(--border);
+}
+.step-components__summary {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--score-soft);
+  border: 1px solid var(--score);
+}
+.step-components__summary-left-title {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+.step-components__summary-left-text {
+  color: var(--fg);
+  font-size: 13px;
+  margin-top: 4px;
+}
+.step-components__summary-right {
+  text-align: right;
+}
+.step-components__summary-value {
+  color: var(--score);
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.step-components__summary-meta {
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+/* ─── Progress ──────────────────────────────────────────────────────────── */
+
+.step-progress__bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 26px;
+  margin-bottom: 10px;
+}
+.step-progress__bar-head-label {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+.step-progress__bar-head-value {
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.step-progress__bar-head-value .pct {
+  color: var(--faint);
+  margin-left: 4px;
+}
+.step-progress__bar {
+  height: 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  position: relative;
+}
+.step-progress__bar-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 200ms ease-out;
+}
+:root[data-theme="dark"] .step-progress__bar-fill {
+  box-shadow: 0 0 16px var(--accent-dim);
+}
+.step-progress__bar-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--bg);
+}
+.step-progress__cards {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.step-progress__card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.step-progress__card-label {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+.step-progress__card-value {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.step-progress__card-value--accent {
+  color: var(--accent);
+}
+.step-progress__card-value--mono {
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.step-progress__card-meta {
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.step-progress__log {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.7;
+  height: 168px;
+  overflow: hidden;
+  position: relative;
+}
+.step-progress__log-row {
+  display: flex;
+  gap: 10px;
+}
+.step-progress__log-row .mark {
+  width: 12px;
+  flex: 0 0 auto;
+}
+.step-progress__log-row--done .mark { color: var(--score); }
+.step-progress__log-row--done .text { color: var(--dim); }
+.step-progress__log-row--running .mark { color: var(--accent); }
+.step-progress__log-row--running .text { color: var(--fg); }
+.step-progress__log-row--pending { opacity: 0.5; }
+.step-progress__log-row--pending .mark,
+.step-progress__log-row--pending .text { color: var(--faint); }
+
+/* ─── Done ──────────────────────────────────────────────────────────────── */
+
+.step-done__cards {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+.step-done__card {
+  flex: 1;
+  padding: 16px 18px;
+}
+.step-done__card--score {
+  background: var(--score-soft);
+  border: 1px solid var(--score);
+}
+.step-done__card--next {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+}
+.step-done__card-label {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+.step-done__card-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  margin-top: 6px;
+}
+.step-done__card--score .step-done__card-value {
+  color: var(--score);
+  font-size: 22px;
+}
+.step-done__card--next .step-done__card-value {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+.step-done__card-meta {
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-top: 2px;
+}
+.step-done__checkboxes {
+  margin-top: 22px;
+}

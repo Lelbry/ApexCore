@@ -1,0 +1,73 @@
+/* Background decoration на Welcome + Done: grid + sparks + score block. */
+
+.bg-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bg-deco__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: 0.9;
+}
+
+.bg-deco__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bg-deco__score {
+  position: absolute;
+  right: 28px;
+  top: 36px;
+  text-align: right;
+  opacity: 0.95;
+  max-width: 220px;
+  pointer-events: none;
+}
+.bg-deco__score-label {
+  color: var(--faint);
+  font-size: 9px;
+  letter-spacing: 0.20em;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.bg-deco__score-value {
+  color: var(--score);
+  font-size: 56px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--score-shadow);
+}
+.bg-deco__score-meta {
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  margin-top: 3px;
+}
+.bg-deco__score-meta .pass {
+  color: var(--score);
+}
+.bg-deco__bars {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-top: 8px;
+}
+.bg-deco__bar {
+  width: 3px;
+  display: block;
+}

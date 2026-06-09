@@ -1,0 +1,1 @@
+"""CLI на Typer + rich."""

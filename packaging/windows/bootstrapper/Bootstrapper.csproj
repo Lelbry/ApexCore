@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>apexcore-setup</AssemblyName>
+    <RootNamespace>Apexcore.Bootstrapper</RootNamespace>
+    <ApplicationIcon>..\..\..\build\branding\apex-logo.ico</ApplicationIcon>
+
+    <!-- Версия читается из build/version.txt сборкой (APEXCORE_VERSION env). -->
+    <Version>$(APEXCORE_VERSION)</Version>
+    <Version Condition="'$(APEXCORE_VERSION)' == ''">$(BENCHKIT_VERSION)</Version>
+    <Version Condition="'$(Version)' == ''">0.0.0</Version>
+    <FileVersion>$(Version)</FileVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+    <AssemblyTitle>ApexCore Setup</AssemblyTitle>
+    <Product>ApexCore</Product>
+    <Company>lelbry</Company>
+    <Copyright>Copyright (c) 2026 ApexCore Project Contributors</Copyright>
+
+    <!-- Self-contained single-file для финального .exe -->
+    <PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile>
+    <SelfContained Condition="'$(Configuration)' == 'Release'">true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2535.41" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Все HTML/CSS/JS из Resources/wwwroot/ кладутся в bundle -->
+    <Content Include="Resources\wwwroot\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- Silent Inno engine (собранный отдельно через iscc) -->
+    <Content Include="..\..\..\dist\engine\apexcore-engine.exe" Condition="Exists('..\..\..\dist\engine\apexcore-engine.exe')">
+      <Link>engine\apexcore-engine.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- WebView2 Evergreen Bootstrapper (~2 МБ): MainWindow ставит его silent,
+         если на машине нет WebView2 Runtime (чистый Win10 / LTSC / N). Опционально
+         (Condition) — если fetch не сошёлся, бандла нет и UI покажет ручную инструкцию. -->
+    <Content Include="..\..\..\build\bundles\MicrosoftEdgeWebview2Setup.exe" Condition="Exists('..\..\..\build\bundles\MicrosoftEdgeWebview2Setup.exe')">
+      <Link>MicrosoftEdgeWebview2Setup.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

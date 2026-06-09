@@ -1,0 +1,484 @@
+# apexcore CPU ranking dataset
+#
+# Используется блоком "Положение среди популярных CPU" в карточке
+# результата теста Single-Core / Multi-Core (см.
+# render.render_single_multi_result и application.cpu_ranking).
+#
+# Числа single_score / multi_score безымянны: внутренние очки,
+# пропорциональные типичным результатам Cinebench R23 1T / nT по
+# публичным обзорам (Tom's Hardware, AnandTech archive, GamersNexus,
+# Notebookcheck). Используются ТОЛЬКО для рейтинговой позиции
+# (top-N%) — абсолютные числа в UI не показываются.
+#
+# Как пополнять: см. README_cpu_ranking.md рядом с этим файлом.
+
+schema_id: "cpu-ranking-v1"
+version: "0.2.0"
+created_at: "2026-05-15"
+notes: >
+  Срез ~40 популярных десктопных CPU 2019-2024 годов (Intel 9-14gen
+  и AMD Ryzen 3000-7000). Включены K, non-K и locked (i3/i5-x400)
+  варианты. Серверные (Xeon, EPYC), HEDT (Threadripper), мобильные
+  H/HX и Apple Silicon намеренно не включены — рейтинг был бы
+  некорректным.
+
+cpus:
+  # ─── Intel Raptor Lake Refresh (14th gen) ───────────────────────────
+  - id: "intel-i9-14900ks"
+    display_name: "Intel Core i9-14900KS"
+    cpu_pattern: "i9-14900ks"
+    family: "raptor_lake_refresh"
+    physical_cores: 24
+    p_cores: 8
+    e_cores: 16
+    logical_threads: 32
+    single_score: 2370
+    multi_score: 42500
+
+  - id: "intel-i9-14900k"
+    display_name: "Intel Core i9-14900K"
+    cpu_pattern: "i9-14900k"
+    family: "raptor_lake_refresh"
+    physical_cores: 24
+    p_cores: 8
+    e_cores: 16
+    logical_threads: 32
+    single_score: 2330
+    multi_score: 41100
+
+  - id: "intel-i7-14700k"
+    display_name: "Intel Core i7-14700K"
+    cpu_pattern: "i7-14700k"
+    family: "raptor_lake_refresh"
+    physical_cores: 20
+    p_cores: 8
+    e_cores: 12
+    logical_threads: 28
+    single_score: 2170
+    multi_score: 36300
+
+  - id: "intel-i5-14600k"
+    display_name: "Intel Core i5-14600K"
+    cpu_pattern: "i5-14600k"
+    family: "raptor_lake_refresh"
+    physical_cores: 14
+    p_cores: 6
+    e_cores: 8
+    logical_threads: 20
+    single_score: 2050
+    multi_score: 24400
+
+  - id: "intel-i7-14700"
+    display_name: "Intel Core i7-14700"
+    cpu_pattern: "i7-14700 "
+    family: "raptor_lake_refresh"
+    physical_cores: 20
+    p_cores: 8
+    e_cores: 12
+    logical_threads: 28
+    single_score: 2050
+    multi_score: 31200
+
+  - id: "intel-i5-14400"
+    display_name: "Intel Core i5-14400"
+    cpu_pattern: "i5-14400"
+    family: "raptor_lake_refresh"
+    physical_cores: 10
+    p_cores: 6
+    e_cores: 4
+    logical_threads: 16
+    single_score: 1880
+    multi_score: 17000
+
+  # ─── Intel Raptor Lake (13th gen) ───────────────────────────────────
+  - id: "intel-i9-13900k"
+    display_name: "Intel Core i9-13900K"
+    cpu_pattern: "i9-13900k"
+    family: "raptor_lake"
+    physical_cores: 24
+    p_cores: 8
+    e_cores: 16
+    logical_threads: 32
+    single_score: 2310
+    multi_score: 40600
+
+  - id: "intel-i7-13700k"
+    display_name: "Intel Core i7-13700K"
+    cpu_pattern: "i7-13700k"
+    family: "raptor_lake"
+    physical_cores: 16
+    p_cores: 8
+    e_cores: 8
+    logical_threads: 24
+    single_score: 2120
+    multi_score: 30900
+
+  - id: "intel-i5-13600k"
+    display_name: "Intel Core i5-13600K"
+    cpu_pattern: "i5-13600k"
+    family: "raptor_lake"
+    physical_cores: 14
+    p_cores: 6
+    e_cores: 8
+    logical_threads: 20
+    single_score: 2020
+    multi_score: 24300
+
+  - id: "intel-i7-13700"
+    display_name: "Intel Core i7-13700"
+    cpu_pattern: "i7-13700 "
+    family: "raptor_lake"
+    physical_cores: 16
+    p_cores: 8
+    e_cores: 8
+    logical_threads: 24
+    single_score: 2070
+    multi_score: 27800
+
+  - id: "intel-i5-13400"
+    display_name: "Intel Core i5-13400"
+    cpu_pattern: "i5-13400"
+    family: "raptor_lake"
+    physical_cores: 10
+    p_cores: 6
+    e_cores: 4
+    logical_threads: 16
+    single_score: 1820
+    multi_score: 16600
+
+  - id: "intel-i3-13100"
+    display_name: "Intel Core i3-13100"
+    cpu_pattern: "i3-13100"
+    family: "raptor_lake"
+    physical_cores: 4
+    p_cores: null
+    e_cores: null
+    logical_threads: 8
+    single_score: 1815
+    multi_score: 8700
+
+  # ─── Intel Alder Lake (12th gen) ────────────────────────────────────
+  - id: "intel-i9-12900k"
+    display_name: "Intel Core i9-12900K"
+    cpu_pattern: "i9-12900k"
+    family: "alder_lake"
+    physical_cores: 16
+    p_cores: 8
+    e_cores: 8
+    logical_threads: 24
+    single_score: 1985
+    multi_score: 27100
+    notes: "Reference machine (used for apexcore calibration)."
+
+  - id: "intel-i7-12700k"
+    display_name: "Intel Core i7-12700K"
+    cpu_pattern: "i7-12700k"
+    family: "alder_lake"
+    physical_cores: 12
+    p_cores: 8
+    e_cores: 4
+    logical_threads: 20
+    single_score: 1925
+    multi_score: 22800
+
+  - id: "intel-i5-12600k"
+    display_name: "Intel Core i5-12600K"
+    cpu_pattern: "i5-12600k"
+    family: "alder_lake"
+    physical_cores: 10
+    p_cores: 6
+    e_cores: 4
+    logical_threads: 16
+    single_score: 1880
+    multi_score: 17400
+
+  - id: "intel-i9-12900"
+    display_name: "Intel Core i9-12900"
+    cpu_pattern: "i9-12900 "
+    family: "alder_lake"
+    physical_cores: 16
+    p_cores: 8
+    e_cores: 8
+    logical_threads: 24
+    single_score: 1940
+    multi_score: 25700
+
+  - id: "intel-i7-12700"
+    display_name: "Intel Core i7-12700"
+    cpu_pattern: "i7-12700 "
+    family: "alder_lake"
+    physical_cores: 12
+    p_cores: 8
+    e_cores: 4
+    logical_threads: 20
+    single_score: 1875
+    multi_score: 21500
+
+  - id: "intel-i5-12400"
+    display_name: "Intel Core i5-12400"
+    cpu_pattern: "i5-12400"
+    family: "alder_lake"
+    physical_cores: 6
+    p_cores: null
+    e_cores: null
+    logical_threads: 12
+    single_score: 1700
+    multi_score: 11900
+
+  - id: "intel-i3-12100"
+    display_name: "Intel Core i3-12100"
+    cpu_pattern: "i3-12100"
+    family: "alder_lake"
+    physical_cores: 4
+    p_cores: null
+    e_cores: null
+    logical_threads: 8
+    single_score: 1700
+    multi_score: 7800
+
+  # ─── Intel Rocket Lake / Comet Lake (non-hybrid) ────────────────────
+  - id: "intel-i9-11900k"
+    display_name: "Intel Core i9-11900K"
+    cpu_pattern: "i9-11900k"
+    family: "rocket_lake"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 1640
+    multi_score: 16100
+
+  - id: "intel-i7-11700k"
+    display_name: "Intel Core i7-11700K"
+    cpu_pattern: "i7-11700k"
+    family: "rocket_lake"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 1580
+    multi_score: 14900
+
+  - id: "intel-i9-10900k"
+    display_name: "Intel Core i9-10900K"
+    cpu_pattern: "i9-10900k"
+    family: "comet_lake"
+    physical_cores: 10
+    p_cores: null
+    e_cores: null
+    logical_threads: 20
+    single_score: 1380
+    multi_score: 14400
+
+  # ─── Intel Coffee Lake Refresh (9th gen) ────────────────────────────
+  - id: "intel-i9-9900k"
+    display_name: "Intel Core i9-9900K"
+    cpu_pattern: "i9-9900k"
+    family: "coffee_lake_refresh"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 1380
+    multi_score: 13100
+
+  - id: "intel-i7-9700k"
+    display_name: "Intel Core i7-9700K"
+    cpu_pattern: "i7-9700k"
+    family: "coffee_lake_refresh"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 8
+    single_score: 1310
+    multi_score: 9700
+
+  # ─── AMD Zen 4 (Ryzen 7000-series) ──────────────────────────────────
+  - id: "amd-ryzen-9-7950x"
+    display_name: "AMD Ryzen 9 7950X"
+    cpu_pattern: "ryzen 9 7950x"
+    family: "zen4"
+    physical_cores: 16
+    p_cores: null
+    e_cores: null
+    logical_threads: 32
+    single_score: 2010
+    multi_score: 38200
+
+  - id: "amd-ryzen-9-7950x3d"
+    display_name: "AMD Ryzen 9 7950X3D"
+    cpu_pattern: "ryzen 9 7950x3d"
+    family: "zen4_x3d"
+    physical_cores: 16
+    p_cores: null
+    e_cores: null
+    logical_threads: 32
+    single_score: 1985
+    multi_score: 36900
+
+  - id: "amd-ryzen-9-7900x"
+    display_name: "AMD Ryzen 9 7900X"
+    cpu_pattern: "ryzen 9 7900x"
+    family: "zen4"
+    physical_cores: 12
+    p_cores: null
+    e_cores: null
+    logical_threads: 24
+    single_score: 1985
+    multi_score: 29200
+
+  - id: "amd-ryzen-7-7800x3d"
+    display_name: "AMD Ryzen 7 7800X3D"
+    cpu_pattern: "ryzen 7 7800x3d"
+    family: "zen4_x3d"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 1815
+    multi_score: 17800
+
+  - id: "amd-ryzen-7-7700x"
+    display_name: "AMD Ryzen 7 7700X"
+    cpu_pattern: "ryzen 7 7700x"
+    family: "zen4"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 2000
+    multi_score: 19700
+
+  - id: "amd-ryzen-5-7600x"
+    display_name: "AMD Ryzen 5 7600X"
+    cpu_pattern: "ryzen 5 7600x"
+    family: "zen4"
+    physical_cores: 6
+    p_cores: null
+    e_cores: null
+    logical_threads: 12
+    single_score: 2000
+    multi_score: 14900
+
+  # ─── AMD Zen 3 (Ryzen 5000-series) ──────────────────────────────────
+  - id: "amd-ryzen-9-5950x"
+    display_name: "AMD Ryzen 9 5950X"
+    cpu_pattern: "ryzen 9 5950x"
+    family: "zen3"
+    physical_cores: 16
+    p_cores: null
+    e_cores: null
+    logical_threads: 32
+    single_score: 1625
+    multi_score: 28700
+
+  - id: "amd-ryzen-9-5900x"
+    display_name: "AMD Ryzen 9 5900X"
+    cpu_pattern: "ryzen 9 5900x"
+    family: "zen3"
+    physical_cores: 12
+    p_cores: null
+    e_cores: null
+    logical_threads: 24
+    single_score: 1625
+    multi_score: 22300
+
+  - id: "amd-ryzen-7-5800x3d"
+    display_name: "AMD Ryzen 7 5800X3D"
+    cpu_pattern: "ryzen 7 5800x3d"
+    family: "zen3_x3d"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 1485
+    multi_score: 14500
+
+  - id: "amd-ryzen-7-5800x"
+    display_name: "AMD Ryzen 7 5800X"
+    cpu_pattern: "ryzen 7 5800x"
+    family: "zen3"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 1610
+    multi_score: 15200
+
+  - id: "amd-ryzen-7-5700x"
+    display_name: "AMD Ryzen 7 5700X"
+    cpu_pattern: "ryzen 7 5700x"
+    family: "zen3"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 1500
+    multi_score: 14700
+
+  - id: "amd-ryzen-5-5600x"
+    display_name: "AMD Ryzen 5 5600X"
+    cpu_pattern: "ryzen 5 5600x"
+    family: "zen3"
+    physical_cores: 6
+    p_cores: null
+    e_cores: null
+    logical_threads: 12
+    single_score: 1605
+    multi_score: 11200
+
+  - id: "amd-ryzen-5-5600"
+    display_name: "AMD Ryzen 5 5600"
+    cpu_pattern: "ryzen 5 5600 "
+    family: "zen3"
+    physical_cores: 6
+    p_cores: null
+    e_cores: null
+    logical_threads: 12
+    single_score: 1500
+    multi_score: 10800
+
+  # ─── AMD Zen 2 (Ryzen 3000-series) ──────────────────────────────────
+  - id: "amd-ryzen-9-3950x"
+    display_name: "AMD Ryzen 9 3950X"
+    cpu_pattern: "ryzen 9 3950x"
+    family: "zen2"
+    physical_cores: 16
+    p_cores: null
+    e_cores: null
+    logical_threads: 32
+    single_score: 1300
+    multi_score: 22300
+
+  - id: "amd-ryzen-9-3900x"
+    display_name: "AMD Ryzen 9 3900X"
+    cpu_pattern: "ryzen 9 3900x"
+    family: "zen2"
+    physical_cores: 12
+    p_cores: null
+    e_cores: null
+    logical_threads: 24
+    single_score: 1290
+    multi_score: 18400
+
+  - id: "amd-ryzen-7-3700x"
+    display_name: "AMD Ryzen 7 3700X"
+    cpu_pattern: "ryzen 7 3700x"
+    family: "zen2"
+    physical_cores: 8
+    p_cores: null
+    e_cores: null
+    logical_threads: 16
+    single_score: 1290
+    multi_score: 12700
+
+  - id: "amd-ryzen-5-3600"
+    display_name: "AMD Ryzen 5 3600"
+    cpu_pattern: "ryzen 5 3600"
+    family: "zen2"
+    physical_cores: 6
+    p_cores: null
+    e_cores: null
+    logical_threads: 12
+    single_score: 1280
+    multi_score: 9100

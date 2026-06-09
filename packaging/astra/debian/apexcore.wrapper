@@ -1,0 +1,11 @@
+#!/bin/sh
+# Wrapper: /usr/bin/apexcore → /opt/apexcore/.venv/bin/apexcore
+# venv-Python имеет правильно прописанный shebang и видит все pip-зависимости.
+
+VENV_BIN="/opt/apexcore/.venv/bin/apexcore"
+if [ ! -x "$VENV_BIN" ]; then
+    echo "apexcore venv не найден ($VENV_BIN)." >&2
+    echo "Попробуйте: sudo apt install --reinstall apexcore" >&2
+    exit 1
+fi
+exec "$VENV_BIN" "$@"

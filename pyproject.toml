@@ -1,0 +1,109 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apexcore"
+version = "1.0.0"
+description = "Кроссплатформенная методика комплексной оценки производительности компьютера: телеметрия, тренды, стресс-тесты и статистическая диагностика"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "lelbry" }]
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.6,<3",
+    "pydantic-settings>=2.1,<3",
+    "psutil>=5.9",
+    "typer>=0.12",
+    "rich>=13.7",
+    "numpy>=1.26,<3",
+    "scipy>=1.11",
+    "threadpoolctl>=3.1",
+    "platformdirs>=4.2",
+    "PyYAML>=6.0",
+    "cryptography>=41,<44",
+    "nvidia-ml-py>=12.0",
+]
+
+[project.optional-dependencies]
+fast = ["numba>=0.59"]
+webui = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "websockets>=12"]
+windows = [
+    "pywin32>=306; sys_platform == 'win32'",
+    "wmi>=1.5; sys_platform == 'win32'",
+    "pythonnet>=3.0; sys_platform == 'win32'",
+]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "types-PyYAML",
+]
+
+[project.scripts]
+apexcore = "apexcore.interfaces.cli.main:app"
+# DEPRECATED: alias для обратной совместимости со скриптами пользователя,
+# вызывающими `benchkit ...`. УДАЛИТЬ в v0.10.0 (см. ARCHITECTURE.md «Backward-compat»).
+benchkit = "apexcore.interfaces.cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"apexcore.infrastructure.persistence" = ["*.sql"]
+"apexcore.infrastructure.sensors" = ["lib/*.dll", "lib/*.sys", "lib/NOTICE.md"]
+"apexcore.data" = ["*.yaml"]
+"apexcore.data.weights" = ["*.yaml"]
+# Web UI статика (HTML/CSS/JS/SVG/PNG/шрифты) — нужна для `apexcore webui`
+# и `apexcore setup`. На Windows-инсталлере собирается PyInstaller'ом и
+# попадает рядом с .exe; в .deb для Astra Linux уезжает через wheel, и
+# без явного package-data setuptools отбрасывает не-`.py` файлы — в итоге
+# WebUI на Astra выдаёт «Static UI not bundled». Покрытие:
+#  - static/index.html, static/_legacy_dashboard.html — корневые страницы;
+#  - static/css/**/*.css, static/js/**/*.js — приложение и setup-wizard;
+#  - static/assets/** — иконки/логотипы (svg/png);
+#  - static/vendor/** — pinned-deps (chart.js, и т.п.);
+#  - static/setup/** — отдельная подпапка с wizard'ом (HTML+CSS+JS).
+"apexcore.interfaces.webui" = [
+    "static/*.html",
+    "static/css/**/*.css",
+    "static/js/**/*.js",
+    "static/assets/**/*",
+    "static/vendor/**/*",
+    "static/setup/**/*",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "N", "RUF"]
+ignore = [
+    "RUF001", # допускаем кириллицу в строках
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["B", "N"]
+# Typer.Option / typer.Argument в default-параметрах — это идиома фреймворка.
+"src/apexcore/interfaces/cli/**/*.py" = ["B008"]
+# Заглавные имена в микробенчмарках — математическая нотация
+# (Zx/Zy для комплексных матриц фрактала, BATCH/DIM/CHUNK как локальные
+# константы). См. STREAM, Mandelbrot и т.п. в литературе.
+"src/apexcore/infrastructure/microbench/**/*.py" = ["N806"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+files = ["src/apexcore"]
