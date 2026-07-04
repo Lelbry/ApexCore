@@ -853,20 +853,20 @@ def diagnose_sensors() -> SensorDiagnostics:
             "Самый быстрый способ получить точные CPU-температуры: "
             "установите HWiNFO (https://www.hwinfo.com, free) или "
             "CoreTemp (https://www.alcpu.com/CoreTemp/, ~3 МБ). "
-            "Benchkit автоматически их обнаружит через Shared Memory."
+            "ApexCore автоматически их обнаружит через Shared Memory."
         )
 
         # Дальше — конкретные сценарии по DegradedReason.
         if DegradedReason.NO_LHM_DLL in seen_reasons:
-            # Скрипт лежит внутри пакета scripts/, а не в корне репо.
+            # Скрипт лежит внутри пакета new-app/scripts/, а не в корне репо.
             # Команда работает из корня репо в стандартной Windows PowerShell
             # 5.1; `pwsh` (PowerShell 7+) на Win10/11 из коробки нет.
             advice.append(
                 "DLL LibreHardwareMonitor отсутствует — выполните из корня "
                 "репозитория: `powershell -ExecutionPolicy Bypass -File "
-                "\scripts\\fetch_lhm.ps1`. Скрипт скачает "
+                "new-app\\scripts\\fetch_lhm.ps1`. Скрипт скачает "
                 "LibreHardwareMonitor v0.9.6 и положит DLL в "
-                "src/apexcore/infrastructure/sensors/lib/. "
+                "new-app/src/apexcore/infrastructure/sensors/lib/. "
                 "Или запустите `apexcore doctor --repair`."
             )
         if DegradedReason.HVCI_BLOCKED in seen_reasons:

@@ -12,7 +12,7 @@
 #   - Inno Setup 6 (iscc.exe в PATH)
 #   - ImageMagick (magick.exe в PATH)
 #
-# Запуск из корня проекта: pwsh -File scripts/build_windows.ps1
+# Запуск из корня проекта: pwsh -File new-app/scripts/build_windows.ps1
 
 $ErrorActionPreference = "Stop"
 Set-Location -Path (Split-Path -Parent $PSScriptRoot)
@@ -152,8 +152,8 @@ Copy-Item -Path "$WwwSrc/*" -Destination $WwwDst -Recurse -Force
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 function Edit-WebFile($path, [ScriptBlock]$transform) {
     # .NET I/O использует CWD процесса (не PowerShell Set-Location) — резолвим
-    # в абсолютный путь, иначе ReadAllText искать будет от <repo>, а не
-    # от .
+    # в абсолютный путь, иначе ReadAllText искать будет от E:\Benchmark, а не
+    # от new-app/.
     $abs = (Resolve-Path -LiteralPath $path).Path
     $orig = [System.IO.File]::ReadAllText($abs, $utf8NoBom)
     $patched = & $transform $orig

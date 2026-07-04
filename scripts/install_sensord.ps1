@@ -36,7 +36,7 @@
       * Системный Python 3.11 (по умолчанию ищется в
          %LOCALAPPDATA%\Programs\Python\Python311). Если он в другом
          месте — передай -SystemPythonExe.
-      * apexcore установлен editable в .venv (по умолчанию `.venv` в корне репозитория).
+      * apexcore установлен editable в .venv (по умолчанию E:\Benchmark\.venv).
          Это даёт нам путь к 3rd-party зависимостям (pythonnet, pydantic,
          numpy и т.д.) — сервис подхватывает их через PYTHONPATH.
 
@@ -46,7 +46,7 @@
 
 .PARAMETER VenvPath
     Путь к корню .venv, где лежат 3rd-party зависимости apexcore'а.
-    По умолчанию `.venv` в корне репозитория.
+    По умолчанию E:\Benchmark\.venv.
 
 .PARAMETER WorktreeSrc
     Путь к src/ apexcore'а (editable install). По умолчанию вычисляется
@@ -92,7 +92,7 @@ if (-not $SystemPythonExe) {
     $SystemPythonExe = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'
 }
 if (-not $VenvPath) {
-    $VenvPath = (Join-Path $newAppDir '.venv')
+    $VenvPath = 'E:\Benchmark\.venv'
 }
 if (-not $WorktreeSrc) {
     $WorktreeSrc = (Resolve-Path (Join-Path $newAppDir 'src')).Path

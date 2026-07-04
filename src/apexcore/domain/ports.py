@@ -24,6 +24,13 @@ from apexcore.domain.models import (
 
 if TYPE_CHECKING:
     from apexcore.domain.general_benchmark import GeneralBenchmarkReport
+    from apexcore.domain.gpu import (
+        GpuBenchmarkReport,
+        GpuDeviceInfo,
+        GpuMeasurement,
+        GpuStressReport,
+        GpuWorkloadKind,
+    )
     from apexcore.domain.winsat import WinsatReport
 
 # ─────────────────────────── Адаптер ОС ─────────────────────────────────────────
@@ -92,6 +99,49 @@ class StressEngine(ABC):
         Если задан ``cancel_token`` и он становится set — движок должен
         корректно завершиться (не позднее, чем через одну единицу работы)
         и вернуть результат на том, что успел выполнить.
+        """
+
+
+# ─────────────────────────── GPU-compute бэкенд ─────────────────────────────────
+
+
+class GpuComputeBackend(ABC):
+    """Кроссвендорный бэкенд GPU-вычислений (реализация — OpenCL через ctypes).
+
+    Абстрагирует перечисление устройств и запуск замеров пропускной
+    способности, чтобы application-слой не зависел от конкретного API
+    (OpenCL/CUDA/…). Реализация обязана деградировать корректно: если ни
+    одного устройства/раннера нет — :meth:`is_available` возвращает False,
+    а не бросает исключение.
+    """
+
+    name: str = "abstract"
+
+    @abstractmethod
+    def is_available(self) -> bool:
+        """Доступен ли бэкенд (загрузился ICD-loader, есть хотя бы одно устройство)?"""
+
+    @abstractmethod
+    def list_devices(self) -> list[GpuDeviceInfo]:
+        """Перечислить GPU-устройства (пустой список — если ничего не найдено)."""
+
+    @abstractmethod
+    def supports(self, device_index: int, kind: GpuWorkloadKind) -> bool:
+        """Поддерживает ли устройство данный тип нагрузки (напр. FP64 на iGPU)."""
+
+    @abstractmethod
+    def measure(
+        self,
+        device_index: int,
+        kind: GpuWorkloadKind,
+        duration_sec: float,
+        cancel_token: threading.Event | None = None,
+    ) -> GpuMeasurement:
+        """Прогнать нагрузку заданное время и вернуть измерение.
+
+        Если задан ``cancel_token`` и он становится set — движок должен
+        завершиться не позднее, чем через одну единицу работы, вернув
+        измерение по факту уже выполненного.
         """
 
 
@@ -222,3 +272,54 @@ class GeneralBenchmarkRepository(ABC):
     @abstractmethod
     def delete(self, run_id: UUID) -> bool:
         """Удалить запись."""
+
+
+class GpuBenchmarkRepository(ABC):
+    """Хранилище прогонов GPU-бенчмарка.
+
+    Один прогон = один :class:`GpuBenchmarkReport` в шкале ×10 000.
+    Отдельная сущность (таблица ``gpu_benchmark_runs``, схема v5), не
+    пересекается с Winsat / micro_runs / general_benchmark_runs.
+    """
+
+    @abstractmethod
+    def save(self, report: GpuBenchmarkReport) -> None:
+        """Сохранить отчёт."""
+
+    @abstractmethod
+    def get(self, run_id: UUID) -> GpuBenchmarkReport | None:
+        """Достать прогон по UUID."""
+
+    @abstractmethod
+    def list_runs(self, limit: int = 50) -> list[GpuBenchmarkReport]:
+        """Список последних прогонов (по убыванию started_at)."""
+
+    @abstractmethod
+    def delete(self, run_id: UUID) -> bool:
+        """Удалить запись. True если удаление произошло."""
+
+
+class GpuStressRepository(ABC):
+    """Хранилище прогонов GPU-стресс-теста (термостабильность).
+
+    Один прогон = один :class:`GpuStressReport`. Здесь НЕТ балла — headline
+    это вердикт PASS/WARN/FAIL/UNKNOWN. Отдельная сущность (таблица
+    ``gpu_stress_runs``, схема v6), не пересекается с gpu_benchmark_runs
+    (то Roofline-балл) / Winsat / micro_runs / general_benchmark_runs.
+    """
+
+    @abstractmethod
+    def save(self, report: GpuStressReport) -> None:
+        """Сохранить отчёт."""
+
+    @abstractmethod
+    def get(self, run_id: UUID) -> GpuStressReport | None:
+        """Достать прогон по UUID."""
+
+    @abstractmethod
+    def list_runs(self, limit: int = 50) -> list[GpuStressReport]:
+        """Список последних прогонов (по убыванию started_at)."""
+
+    @abstractmethod
+    def delete(self, run_id: UUID) -> bool:
+        """Удалить запись. True если удаление произошло."""

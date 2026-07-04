@@ -5,7 +5,7 @@
 #
 # Идемпотентен: пересобирает только если source новее target.
 #
-# Запуск: pwsh -File scripts/build_branding.ps1
+# Запуск: pwsh -File new-app/scripts/build_branding.ps1
 #
 # Используется в scripts/build_windows.ps1 (шаг [1/10]).
 

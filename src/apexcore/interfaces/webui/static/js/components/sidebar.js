@@ -1,4 +1,4 @@
-// Sidebar: 10 пунктов навигации в порядке частоты использования.
+// Sidebar: 11 пунктов навигации в порядке частоты использования.
 // Winsat прячется на Linux.
 
 import { state, subscribe } from '../store.js';
@@ -9,12 +9,13 @@ const ITEMS = [
   ['02', '#sensors',      '◉', 'Sensors',                    {}],
   ['03', '#stress',       '⚡', 'Стресс-тест',                {}],
   ['04', '#general',      '⏱', 'Общая оценка системы',       {}],
-  ['05', '#cpu-advanced', '✦', 'Расш. тест CPU',             {}],
-  ['06', '#ramcache',     '▤', 'Ram & Cache',                {}],
-  ['07', '#winsat',       '◷', 'Наследие Winsat',            { windowsOnly: true }],
-  ['08', '#history',      '☷', 'История',                    {}],
-  ['09', '#diagnose',     '⚕', 'Diagnose',                   {}],
-  ['10', '#settings',     '⚙', 'Settings',                   {}],
+  ['05', '#gpu',          '▧', 'Тест GPU',                   {}],
+  ['06', '#cpu-advanced', '✦', 'Расш. тест CPU',             {}],
+  ['07', '#ramcache',     '▤', 'Ram & Cache',                {}],
+  ['08', '#winsat',       '◷', 'Наследие Winsat',            { windowsOnly: true }],
+  ['09', '#history',      '☷', 'История',                    {}],
+  ['10', '#diagnose',     '⚕', 'Diagnose',                   {}],
+  ['11', '#settings',     '⚙', 'Settings',                   {}],
 ];
 
 export function renderSidebar(host) {

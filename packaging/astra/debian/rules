@@ -58,10 +58,6 @@ override_dh_auto_install:
 	# 3. Wrapper в /usr/bin/apexcore (НЕ /usr/local/bin — туда кладёт только
 	# локальный админ, не пакеты; dh_usrlocal по Debian Policy блокирует это).
 	install -D -m 755 debian/apexcore.wrapper $(DESTDIR)/usr/bin/apexcore
-	# 3b. Backward-compat: /usr/bin/benchkit symlink на /usr/bin/apexcore.
-	# Пользовательские скрипты с `benchkit ...` продолжают работать на 1 релиз.
-	# Удалить в v0.10.0 — здесь и в Conflicts/Replaces/Provides в control.
-	ln -sf apexcore $(DESTDIR)/usr/bin/benchkit
 	# 4. .desktop launcher
 	install -D -m 644 debian/apexcore.desktop \
 	    $(DESTDIR)/usr/share/applications/apexcore.desktop

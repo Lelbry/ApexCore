@@ -106,7 +106,7 @@ Sustainable performance argument — research `stress_test_mark_method.md` §3 (
 
 ### 4.5 T_max
 
-Берётся напрямую из `ThermalStabilityResult.temp_max_c` — то же поле, которое заполняет `compute_thermal_stability` по telemetry sensor sampling. Требует CPU temp через LHM/PawnIO/sensord (см. ARCHITECTURE.md). Без admin/без sensord → `t_max=None` → балл не строится.
+Берётся напрямую из `ThermalStabilityResult.temp_max_c` — то же поле, которое заполняет `compute_thermal_stability` по telemetry sensor sampling. Требует CPU temp через LHM/PawnIO/sensord (см. CLAUDE.md). Без admin/без sensord → `t_max=None` → балл не строится.
 
 ## 5. Длительность прогона и точность
 

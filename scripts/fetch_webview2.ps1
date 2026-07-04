@@ -3,7 +3,7 @@
 # Content); if the target machine lacks the WebView2 Runtime, MainWindow runs
 # this setup silently before loading the wizard UI (clean Win10 / LTSC / N).
 #
-# Run: pwsh -File scripts/fetch_webview2.ps1
+# Run: pwsh -File new-app/scripts/fetch_webview2.ps1
 # Idempotent: skips if already downloaded.
 
 $ErrorActionPreference = "Stop"

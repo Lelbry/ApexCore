@@ -219,14 +219,14 @@ function makeMockBridge() {
   console.info('[bridge] mock mode — нет нативного host\'а, действия логируются в console');
   return {
     platform: 'mock',
-    version: '1.0.0-dev',
+    version: '1.1.0-dev',
     startInstall: async (opts) => {
       console.log('[bridge] startInstall (mock)', opts);
       // имитируем 6 шагов прогресса
       const steps = [
         { percent: 5,  step: 'Создание каталога', log_line: 'mkdir C:\\Program Files\\ApexCore' },
         { percent: 20, step: 'Распаковка Python 3.10.13 runtime', log_line: '38 MB' },
-        { percent: 45, step: 'Установка пакета apexcore-1.0.0', log_line: '54 MB' },
+        { percent: 45, step: 'Установка пакета apexcore-1.1.0', log_line: '54 MB' },
         { percent: 65, step: 'Установка LibreHardwareMonitorLib.dll', log_line: '18 MB' },
         { percent: 80, step: 'Распаковка PawnIO драйвера', log_line: 'PawnIO.msi' },
         { percent: 95, step: 'Регистрация контекстных меню' },

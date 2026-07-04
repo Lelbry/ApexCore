@@ -1,3 +1,27 @@
+apexcore (1.1.0) unstable; urgency=medium
+
+  * Кроссвендорный модуль тестирования GPU.
+    - GPU-бенчмарк по Roofline: FP32/FP64 (GFLOPS), пропускная способность
+      VRAM (STREAM-triad, GB/s), скорость шины PCIe (H2D/D2H) → композитный
+      балл GM(r_fp32, r_mem) × 10 000 (FP64 и PCIe — информационные, вне балла).
+    - GPU-стресс (термостабильность): длительная FP32-нагрузка + посекундная
+      телеметрия (температура/мощность/частота/загрузка) + вердикт
+      PASS/WARN/FAIL/UNKNOWN.
+    - Кроссвендорный путь через OpenCL (ctypes к ICD-loader'у), без новых
+      Python-зависимостей. CLI `apexcore gpu list/run/test/stress`, пункт меню,
+      экран в Web UI, единая История прогонов.
+    - Хранилище: схема БД v6 (+таблицы gpu_benchmark_runs, gpu_stress_runs),
+      additive-миграция.
+  * Удалены backward-compat шимы benchkit → apexcore (были на один релиз):
+    CLI-alias `benchkit`, трансляция ENV BENCHKIT_* → APEXCORE_*, миграция
+    старых data-dir, /usr/bin/benchkit symlink, Conflicts/Replaces/Provides.
+  * Платформы: GPU-модуль проверен на Windows (NVIDIA RTX 4070 Ti + Intel
+    UHD 770). На Astra/AMD graceful degrade («GPU недоступен»); полноценный
+    GPU-compute на Radeon 680M требует установленного OpenCL ICD и ждёт
+    прогона на стенде.
+
+ -- lelbry <noreply@example.local>  Sat, 04 Jul 2026 12:00:00 +0000
+
 apexcore (1.0.0) unstable; urgency=medium
 
   * Первый стабильный релиз под Astra Linux SE 1.8.5.46 «Орёл».

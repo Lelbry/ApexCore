@@ -126,6 +126,29 @@ export const api = {
   }),
   ramCacheStatus: () => request('/api/ram-cache/status'),
   ramCacheStop:   () => request('/api/ram-cache/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+  // §9.5 — GPU-бенчмарк (Roofline OpenCL, persistence в gpu_benchmark_runs).
+  // devices → { available: bool, devices: [GpuDeviceInfo] }. Пусто/available:false
+  // = нет OpenCL-loader'а или устройств → экран рисует «GPU не обнаружен».
+  gpuDevices: () => request('/api/gpu/devices'),
+  // body { device_index?, fp32_duration_sec?, fp64_duration_sec?,
+  //        mem_duration_sec?, pcie_duration_sec?, cooldown_sec? }
+  gpuStart:   (body = {}) => request('/api/gpu/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
+  gpuStatus:  () => request('/api/gpu/status'),
+  gpuStop:    () => request('/api/gpu/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+  // §9.5 — GPU-стресс-тест (термостабильность, persistence в gpu_stress_runs).
+  // Headline — вердикт PASS/WARN/FAIL/UNKNOWN (не балл). Body start:
+  // { device_index?, duration_sec? }. status.progress = { elapsed_sec, duration_sec }.
+  gpuStressStart:  (body = {}) => request('/api/gpu/stress/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
+  gpuStressStatus: () => request('/api/gpu/stress/status'),
+  gpuStressStop:   () => request('/api/gpu/stress/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
   // §9.9 — экспорт + удаление прогона (любой тип). Экспорт триггерит
   // download через Content-Disposition заголовок — реализуем как window.open
   // вместо fetch (чтобы браузер сам обработал скачивание).

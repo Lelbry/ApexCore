@@ -1,7 +1,7 @@
 ﻿# Скачивает последний релизный MSI namazso/PawnIO в build/bundles/.
 # Используется installer.iss [Files] чтобы избежать winget при установке.
 #
-# Запуск: pwsh -File scripts/fetch_pawnio.ps1
+# Запуск: pwsh -File new-app/scripts/fetch_pawnio.ps1
 # Идемпотентен: пропускает если уже скачан и хэш совпадает.
 
 $ErrorActionPreference = "Stop"

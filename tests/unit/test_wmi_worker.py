@@ -4,7 +4,7 @@
 реальные win32 API в тестах. Покрытие: init success/failure, query
 success/failure, timeout, fallback в legacy-путь.
 
-Регрессионный инвариант (см. ARCHITECTURE.md): ``_WMI_PACKAGE_BROKEN`` + широкий
+Регрессионный инвариант (см. CLAUDE.md): ``_WMI_PACKAGE_BROKEN`` + широкий
 ``except`` в ``read_msacpi_thermal_zone`` сохраняются как safety-net даже
 после введения worker'а — это проверяется в test_sensors_wmi.py.
 """

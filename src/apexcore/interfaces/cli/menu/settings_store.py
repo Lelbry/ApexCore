@@ -14,9 +14,9 @@
     sampling_rate_sec: 0.5
     threads: 0  # 0 = auto
 
-Зачем отдельно от ``BenchkitSettings``
+Зачем отдельно от ``ApexcoreSettings``
 --------------------------------------
-``BenchkitSettings`` управляет «системными» путями (БД, лог-уровень,
+``ApexcoreSettings`` управляет «системными» путями (БД, лог-уровень,
 profiles_path) и читается через pydantic-settings из env. Здесь — чисто
 пользовательские предпочтения, которые меняются из меню в рантайме и
 сохраняются обратно. Смешивать их в одной модели не стоит: разный
@@ -43,6 +43,13 @@ MIN_DURATION_STRESS = 5.0
 MIN_DURATION_BENCH = 5.0
 MIN_DURATION_RAM_CACHE = 1.0
 MIN_DURATION_SINGLE_MULTI = 1.0
+# GPU: compute-фазы (FP32/FP64/VRAM) короче 1 с не дают устойчивого замера
+# throughput'а OpenCL-кернела; PCIe ограничен шиной — 0.5 с достаточно.
+MIN_DURATION_GPU_COMPUTE = 1.0
+MIN_DURATION_GPU_PCIE = 0.5
+# GPU-стресс (термостабильность): короче 10 с GPU не успевает прогреться и
+# зайти в буст-settle — вердикт по стабильности будет недостоверным.
+MIN_DURATION_GPU_STRESS = 10.0
 
 MAX_DURATION = 3600.0  # 1 час — выше уже не имеет смысла для интерактивного тула
 
@@ -57,6 +64,9 @@ class DurationSettings:
     bench: float = 30.0         # каждая фаза bench run
     ram_cache: float = 8.0      # одно из 16 измерений в Ram&Cache-тесте
     single_multi: float = 5.0   # один замер (Single или Multi) в тесте Single/Multi-Core
+    gpu_compute: float = 5.0    # каждая compute-фаза GPU (FP32/FP64/VRAM)
+    gpu_pcie: float = 2.0       # каждая PCIe-фаза GPU (H2D/D2H)
+    gpu_stress: float = 60.0    # GPU-стресс (термостабильность), одна нагрузка
 
 
 SPARKLINE_STYLES: tuple[str, ...] = ("auto", "unicode", "ascii")
@@ -151,6 +161,41 @@ PROGRAMS: tuple[ProgramDescriptor, ...] = (
         full_run_count=2,
         full_run_unit="замера",
     ),
+    ProgramDescriptor(
+        label="GPU-бенчмарк: вычислительная фаза (FP32/FP64/VRAM)",
+        field="gpu_compute",
+        technical="apexcore gpu run",
+        min_value=MIN_DURATION_GPU_COMPUTE,
+        description=(
+            "Длительность одной вычислительной фазы GPU (FP32, FP64 или "
+            "пропускная способность VRAM). Таких фаз в полном прогоне три."
+        ),
+        full_run_count=3,
+        full_run_unit="фазы",
+    ),
+    ProgramDescriptor(
+        label="GPU-бенчмарк: фаза PCIe (H2D/D2H)",
+        field="gpu_pcie",
+        technical="apexcore gpu run",
+        min_value=MIN_DURATION_GPU_PCIE,
+        description=(
+            "Длительность одной фазы копирования по шине PCIe (host→device "
+            "или device→host). Таких фаз в полном прогоне две."
+        ),
+        full_run_count=2,
+        full_run_unit="фазы",
+    ),
+    ProgramDescriptor(
+        label="GPU-стресс-тест (термостабильность)",
+        field="gpu_stress",
+        technical="apexcore gpu stress",
+        min_value=MIN_DURATION_GPU_STRESS,
+        description=(
+            "Длительность длительной FP32-нагрузки на GPU для проверки "
+            "термостабильности (нагрев, троттлинг, обвал частоты). "
+            "Для честной оценки — минуты."
+        ),
+    ),
 )
 
 
@@ -228,6 +273,15 @@ def _coerce_durations(raw: dict[str, Any] | None) -> DurationSettings:
         ),
         single_multi=_safe_float(
             raw.get("single_multi"), defaults.single_multi, MIN_DURATION_SINGLE_MULTI
+        ),
+        gpu_compute=_safe_float(
+            raw.get("gpu_compute"), defaults.gpu_compute, MIN_DURATION_GPU_COMPUTE
+        ),
+        gpu_pcie=_safe_float(
+            raw.get("gpu_pcie"), defaults.gpu_pcie, MIN_DURATION_GPU_PCIE
+        ),
+        gpu_stress=_safe_float(
+            raw.get("gpu_stress"), defaults.gpu_stress, MIN_DURATION_GPU_STRESS
         ),
     )
 
@@ -427,6 +481,9 @@ __all__ = [
     "CLI_THEMES",
     "MAX_DURATION",
     "MIN_DURATION_BENCH",
+    "MIN_DURATION_GPU_COMPUTE",
+    "MIN_DURATION_GPU_PCIE",
+    "MIN_DURATION_GPU_STRESS",
     "MIN_DURATION_MICRO",
     "MIN_DURATION_MONITOR",
     "MIN_DURATION_RAM_CACHE",

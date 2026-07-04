@@ -1,6 +1,6 @@
 """Stress test mark: 4-компонентный балл sustainable performance под нагрузкой.
 
-Спецификации: ``docs/stress_score.md``,
+Спецификации: ``new-app/docs/stress_score.md``,
 ``docs/research/stress_test_mark_method.md``.
 
 Балл агрегирует четыре безразмерных ratio через геометрическое среднее:
@@ -12,7 +12,7 @@
 
 GM — Williams 2009 (Roofline), Fleming & Wallace 1986 (GM нормализованных ratio),
 sustainable performance argument (research §3). Для построения балла нужны все
-четыре ratio; CPU temp требует LHM/PawnIO/sensord (см. ARCHITECTURE.md).
+четыре ratio; CPU temp требует LHM/PawnIO/sensord (см. CLAUDE.md).
 
 Длительность прогона **не блокирует** расчёт балла: даже короткий прогон
 (< 90 сек) даёт оценку, но рендер показывает warning «приближённая, для

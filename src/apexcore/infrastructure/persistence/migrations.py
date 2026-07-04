@@ -10,6 +10,11 @@
   режим, см. docs/winsat.md).
 - v4 — «Оценки общей производительности»: добавлена таблица
   general_benchmark_runs (шкала ×10 000). Additive — ничего не дропается.
+- v5 — GPU-бенчмарк: добавлена таблица gpu_benchmark_runs (Roofline для
+  GPU, шкала ×10 000). Additive — ничего не дропается (см. docs/gpu_benchmark.md).
+- v6 — GPU-стресс-тест: добавлена таблица gpu_stress_runs (термостабильность,
+  headline = вердикт PASS/WARN/FAIL/UNKNOWN, без балла). Additive — ничего
+  не дропается (см. docs/gpu_benchmark.md).
 """
 
 from __future__ import annotations
@@ -18,7 +23,7 @@ import sqlite3
 from importlib import resources
 from pathlib import Path
 
-CURRENT_VERSION = 4
+CURRENT_VERSION = 6
 
 
 def apply_schema(conn: sqlite3.Connection) -> None:
@@ -54,6 +59,14 @@ def apply_schema(conn: sqlite3.Connection) -> None:
 
     # v4 миграция: добавление general_benchmark_runs — тоже additive,
     # CREATE IF NOT EXISTS из schema.sql достаточно.
+
+    # v5 миграция: добавление gpu_benchmark_runs — тоже additive,
+    # CREATE IF NOT EXISTS из schema.sql достаточно (существующие v4-БД
+    # получают таблицу, ничего не дропается).
+
+    # v6 миграция: добавление gpu_stress_runs — тоже additive,
+    # CREATE IF NOT EXISTS из schema.sql достаточно (существующие v5-БД
+    # получают таблицу, ничего не дропается).
 
     # Применить актуальную схему (CREATE IF NOT EXISTS — идемпотентно).
     sql = _read_schema()

@@ -100,9 +100,8 @@ sudo apt purge apexcore           # удалить пакет вместе с к
 ## Сборка из исходников (для разработчиков)
 
 ```bash
-cd ~/ApexCore
-git checkout v1.0.0
-bash scripts/build_astra.sh                       # сборка .deb
-sudo apt install ./dist/apexcore_1.0.0_amd64.deb  # установка
-# результат: dist/apexcore_1.0.0_amd64.deb
+cd ~/benchmark_by_lelbry
+git checkout v1.0.0               # или: git pull origin dev
+bash new-app/scripts/astra_rebuild_install.sh        # полный цикл: сборка + установка
+# результат: new-app/dist/apexcore_1.0.0_amd64.deb
 ```

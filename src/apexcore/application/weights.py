@@ -1,6 +1,6 @@
 """Weights profile: загрузка профилей весов для scoring v2.
 
-Спецификация: ``docs/scoring_v2.md`` §5 и §6.
+Спецификация: ``new-app/docs/scoring_v2.md`` §5 и §6.
 
 Профили лежат в ``src/apexcore/data/weights/<name>.yaml`` (включаются в пакет
 через ``[tool.setuptools.package-data]`` в pyproject.toml). Дефолт — equal

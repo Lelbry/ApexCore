@@ -18,12 +18,12 @@
 
 ### Windows
 ```powershell
-pwsh -File scripts/build_branding.ps1
+pwsh -File new-app/scripts/build_branding.ps1
 ```
 
 ### Astra Linux
 ```bash
-bash scripts/build_branding.sh
+bash new-app/scripts/build_branding.sh
 ```
 
 Оба скрипта пишут в `build/branding/` (рядом с корнем проекта, не в git).

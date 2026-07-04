@@ -41,8 +41,8 @@ def test_home_screen_no_longer_has_winsat_directly():
 
 def test_home_screen_menu_order():
     """Главное меню должно идти в порядке, согласованном с пользователем:
-    1 Инфо · 2 Датчики · 3 Стресс · 4 Общая оценка · 5 CPU · 6 RAM&Cache ·
-    7 История ваших тестов · 8 Web UI · 9 Настройки · q Выход.
+    1 Инфо · 2 Датчики · 3 Стресс · 4 Общая оценка · 5 GPU · 6 CPU ·
+    7 RAM&Cache · 8 История ваших тестов · 9 Web UI · 10 Настройки · q Выход.
     """
     screen = HomeScreen()
     items = screen.items()
@@ -52,10 +52,13 @@ def test_home_screen_menu_order():
     assert "мониторинг в реальном времени" in by_key["2"]
     assert by_key["3"] == "Стресс-тест системы"
     assert by_key["4"] == "Общая оценка производительности системы"
-    assert by_key["5"] == "Расширенное тестирование процессора"
-    assert "Расширенный тест оперативной памяти и кеша" in by_key["6"]
-    assert "Ram & CPU Cache" in by_key["6"]
-    assert by_key["7"] == "История ваших тестов"
+    assert by_key["5"] == "Оценка производительности GPU"
+    assert by_key["6"] == "Расширенное тестирование процессора"
+    assert "Расширенный тест оперативной памяти и кеша" in by_key["7"]
+    assert "Ram & CPU Cache" in by_key["7"]
+    assert by_key["8"] == "История ваших тестов"
+    assert by_key["9"] == "Web UI (localhost)"
+    assert by_key["10"] == "Настройки"
 
 
 def test_benchmark_screen_has_general_benchmark_item():

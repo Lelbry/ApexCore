@@ -26,10 +26,9 @@
 #define SensordDistDir "..\..\dist\apexcore-sensord"
 
 [Setup]
-; AppId сохранён от старой "ApexCore benchkit" v0.8.x — installer считает
-; v0.9.0+ обновлением и переустанавливает поверх. UninstallString из старого
-; реестра дёргается до установки новых файлов; PATH старой папки чистится
-; вручную через [Code] блок ниже (RemoveLegacyAppPath).
+; AppId стабилен между версиями — installer считает новые версии обновлением
+; и переустанавливает поверх, реюзая старый каталог установки по AppId
+; (см. GetExistingDir в [Code]).
 AppId={{C7D9D6F1-8F2E-4B5A-9F3F-77B9B1A1B8AF}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -135,16 +134,11 @@ Name: "sensord"; Description: "Установить apexcore_sensord (T° ЦП /
 Name: "smartmontools"; Description: "Установить smartmontools (T° NVMe/SATA-дисков в разделе «Датчики»)"; GroupDescription: "Дополнительные источники сенсоров:"
 
 [Code]
-// --- Migration from "ApexCore benchkit" (v0.8.x) to "ApexCore" (v0.9.0+) ---
-// AppId сохранён (см. [Setup]), но папка установки и имя продукта меняются.
-// Inno сам переустанавливает поверх по AppId, НО:
-//   1. Старый DefaultDirName был {autopf}\ApexCore benchkit — новый {autopf}\ApexCore.
-//      Если запись о предыдущей установке указывает на старый путь, реюзаем его,
-//      чтобы при upgrade пользователь получил «ту же папку, новое имя».
-//   2. Старый PATH-entry указывает на {autopf}\ApexCore benchkit — он перестал
-//      существовать после удаления old binaries; чистим в [Code] до AddToPath.
-//   3. Старый сервис benchkit_sensord — install_sensord_bundle.ps1 сам делает
-//      defensive `sc.exe stop benchkit_sensord; sc.exe delete benchkit_sensord`.
+// --- Upgrade поверх предыдущей установки (тот же AppId) ---
+// AppId стабилен между версиями; Inno переустанавливает поверх по AppId.
+// Если запись о предыдущей установке в реестре указывает на существующий
+// каталог, реюзаем его как DefaultDirName (GetExistingDir), чтобы upgrade
+// шёл в ту же папку, а не создавал вторую.
 
 function GetLegacyInstallPath(): string;
 var
@@ -188,33 +182,6 @@ begin
   Result := RegWriteStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Paths);
 end;
 
-procedure RemoveLegacyFromPath();
-var
-  Paths: string;
-  Legacy: string;
-  Candidates: array of string;
-  i, P, LegLen: Integer;
-begin
-  if not RegQueryStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Paths) then
-    exit;
-  SetArrayLength(Candidates, 3);
-  Candidates[0] := ExpandConstant('{autopf}\ApexCore benchkit');
-  Candidates[1] := ExpandConstant('{autopf}\Benchkit');
-  Candidates[2] := GetLegacyInstallPath();
-  for i := 0 to GetArrayLength(Candidates) - 1 do begin
-    Legacy := Candidates[i];
-    if Legacy = '' then continue;
-    LegLen := Length(Legacy);
-    P := Pos(LowerCase(Legacy), LowerCase(Paths));
-    if P = 0 then continue;
-    Delete(Paths, P, LegLen);
-    StringChangeEx(Paths, ';;', ';', True);
-    if (Length(Paths) > 0) and (Paths[1] = ';') then Delete(Paths, 1, 1);
-    if (Length(Paths) > 0) and (Paths[Length(Paths)] = ';') then Delete(Paths, Length(Paths), 1);
-  end;
-  RegWriteStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Paths);
-end;
-
 function RemoveFromPath(): Boolean;
 var
   Paths: string;
@@ -236,8 +203,6 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssInstall then
-    RemoveLegacyFromPath();
   if (CurStep = ssPostInstall) and IsTaskSelected('addtopath') then
     AddToPath();
 end;
@@ -286,9 +251,8 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Fil
 ; install_sensord_bundle.ps1 использует standalone PyInstaller-EXE
 ; apexcore-sensord.exe из {app}\apexcore-sensord\ (он содержит свой
 ; embedded Python + pywin32 + LHM-зависимости). Никаких сложных
-; pywin32+venv-трюков — sc.exe-based регистрация. Перед регистрацией
-; defensive `sc.exe stop benchkit_sensord; sc.exe delete benchkit_sensord`
-; чтобы при upgrade от v0.8.x старый сервис не дублировался.
+; pywin32+venv-трюков — sc.exe-based регистрация. Если предыдущий
+; apexcore_sensord ещё зарегистрирован — сносит и ставит заново.
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\install_sensord_bundle.ps1"" -InstallDir ""{app}"" -NoPrompt"; \
     Tasks: sensord; \
     Flags: runhidden waituntilterminated; \

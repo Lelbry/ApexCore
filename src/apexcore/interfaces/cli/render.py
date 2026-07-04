@@ -2126,3 +2126,377 @@ def render_general_benchmark_report(report: object) -> None:
     # ─── Визуальный разделитель перед «Enter — продолжить» ────────────────
     console.print()
     console.rule(style="dim")
+
+
+def render_gpu_report(report: object) -> None:
+    """Финальный отчёт GPU-бенчмарка (Roofline по FP32 + VRAM, шкала ×10 000).
+
+    Порядок секций (по образцу ``render_general_benchmark_report``):
+    1. Заголовок (зелёная rule; жёлтая при отмене).
+    2. Panel-шапка устройства: имя / вендор / тип / CU / частота / VRAM / FP64.
+    3. Таблица «измерено — пик — % от пика»: FP32 GFLOPS (+r_fp32),
+       VRAM GB/s (+r_mem), FP64 GFLOPS (информационно, вне балла),
+       PCIe H2D / D2H (информационно).
+    4. Заметки (notes) — если есть.
+    5. Финальная плашка с баллом «X / 10000» (или «недоступно» при None).
+    6. Panel-пояснение шкалы.
+    7. dim-rule — разделитель перед «Enter — продолжить».
+
+    Принимает ``GpuBenchmarkReport`` как ``object`` — тем же приёмом, что и
+    прочие render-функции, чтобы не тащить cross-domain импорт в модуль
+    рендера. Плейсхолдер-устройство (``index == -1``, случай «нет OpenCL/GPU»)
+    показывается как «устройство не найдено», а все ``None``-поля — как «—».
+    """
+    device = getattr(report, "device", None)
+    dev_index = getattr(device, "index", -1)
+    is_placeholder = dev_index is None or dev_index < 0
+
+    fp32_g = getattr(report, "fp32_gflops", None)
+    fp64_g = getattr(report, "fp64_gflops", None)
+    mem_g = getattr(report, "mem_bandwidth_gb_s", None)
+    h2d_g = getattr(report, "pcie_h2d_gb_s", None)
+    d2h_g = getattr(report, "pcie_d2h_gb_s", None)
+    fp32_peak = getattr(report, "fp32_peak_gflops", None)
+    fp64_peak = getattr(report, "fp64_peak_gflops", None)
+    mem_peak = getattr(report, "mem_bandwidth_peak_gb_s", None)
+    r_fp32 = getattr(report, "r_fp32", None)
+    r_mem = getattr(report, "r_mem", None)
+    r_fp64 = getattr(report, "r_fp64", None)
+    score = getattr(report, "score", None)
+    arch = getattr(report, "arch", None)
+    peak_source = getattr(report, "peak_source", None) or "unknown"
+    cancelled = bool(getattr(report, "cancelled", False))
+    notes = list(getattr(report, "notes", []) or [])
+
+    if cancelled:
+        console.rule("[bold yellow]GPU-ОЦЕНКА: ПРЕРВАНО ПОЛЬЗОВАТЕЛЕМ[/]")
+    else:
+        console.rule("[bold green]ОЦЕНКА ПРОИЗВОДИТЕЛЬНОСТИ GPU[/]")
+
+    # ─── Шапка устройства ─────────────────────────────────────────────────
+    console.print()
+    if is_placeholder:
+        console.print(
+            Panel(
+                "[bold]Устройство не найдено[/]\n"
+                "[dim]OpenCL/GPU недоступен — ICD-loader не загрузился или "
+                "GPU-устройств не обнаружено.[/]",
+                border_style="yellow",
+                expand=False,
+            )
+        )
+    else:
+        name = getattr(device, "name", "—") or "—"
+        vendor = getattr(device, "vendor", "") or "—"
+        dev_type = getattr(device, "device_type", None)
+        type_label = _gpu_type_label(getattr(dev_type, "value", dev_type))
+        cu = getattr(device, "compute_units", 0) or 0
+        clock = getattr(device, "max_clock_mhz", 0) or 0
+        vram_mb = getattr(device, "global_mem_mb", 0) or 0
+        fp64_hw = bool(getattr(device, "fp64_supported", False))
+        vram_gb = vram_mb / 1024.0 if vram_mb else 0.0
+        arch_str = f"  ·  архитектура: [cyan]{arch}[/]" if arch else ""
+        console.print(
+            Panel.fit(
+                f"[bold cyan]{name}[/]\n"
+                f"Вендор: {vendor}  ·  Тип: {type_label}{arch_str}\n"
+                f"Вычислительных блоков: [bold]{cu}[/]  ·  "
+                f"Частота ядра: [bold]{clock}[/] МГц  ·  "
+                f"VRAM: [bold]{vram_gb:.1f}[/] ГБ\n"
+                f"FP64 (аппаратно): "
+                + ("[green]да[/]" if fp64_hw else "[dim]нет[/]"),
+                title="[bold]Тестируемое устройство[/]",
+                border_style="cyan",
+            )
+        )
+
+    # ─── Таблица «измерено — пик — % от пика» ─────────────────────────────
+    console.print()
+    tbl = Table(
+        title="[bold]Измерено vs архитектурный пик[/]",
+        box=box.ROUNDED,
+        header_style="bold cyan",
+        title_justify="center",
+        pad_edge=True,
+        show_lines=False,
+    )
+    tbl.add_column("Показатель", style="bold", min_width=22, no_wrap=True)
+    tbl.add_column("Измерено", justify="right")
+    tbl.add_column("Пик", justify="right", style="dim")
+    tbl.add_column("% от пика", justify="right", style="bold green")
+    tbl.add_column("В баллах", justify="center", style="dim")
+
+    def _row(
+        name: str,
+        val: float | None,
+        peak: float | None,
+        ratio: float | None,
+        unit: str,
+        *,
+        scored: bool,
+    ) -> None:
+        result_cell = f"{val:.1f} {unit}" if val is not None else "—"
+        peak_cell = f"{peak:.0f} {unit}" if peak is not None else "—"
+        # Процент берём из готового ratio (уже clamp ≤1.0 в отчёте); если его
+        # нет — считаем из измеренного/пика на месте.
+        pct: float | None
+        if ratio is not None:
+            pct = min(ratio, 1.0) * 100.0
+        elif val is not None and peak and peak > 0:
+            pct = min(val / peak, 1.0) * 100.0
+        else:
+            pct = None
+        if pct is None:
+            util_cell = "—"
+        elif pct >= 70.0:
+            util_cell = f"[bold green]{pct:.1f} %[/]"
+        elif pct >= 40.0:
+            util_cell = f"[bold yellow]{pct:.1f} %[/]"
+        else:
+            util_cell = f"[bold red]{pct:.1f} %[/]"
+        scored_cell = "[green]✓[/]" if scored else "[dim]инфо[/]"
+        tbl.add_row(name, result_cell, peak_cell, util_cell, scored_cell)
+
+    _row("FP32 (вычисления)", fp32_g, fp32_peak, r_fp32, "GFLOPS", scored=True)
+    _row("VRAM (пропускная)", mem_g, mem_peak, r_mem, "GB/s", scored=True)
+    tbl.add_section()
+    _row("FP64 (вычисления)", fp64_g, fp64_peak, r_fp64, "GFLOPS", scored=False)
+    # PCIe — без архитектурного пика (шина): только измеренное значение.
+    _row("PCIe host→device", h2d_g, None, None, "GB/s", scored=False)
+    _row("PCIe device→host", d2h_g, None, None, "GB/s", scored=False)
+
+    console.print(tbl)
+    console.print(
+        "[dim]«В баллах»: только FP32 и VRAM формируют итоговый балл "
+        f"(GM двух долей × 10 000). FP64 и PCIe — информационные. "
+        f"Источник пика: {peak_source}.[/]"
+    )
+
+    # ─── Заметки (warnings / errors) ──────────────────────────────────────
+    if notes:
+        console.print()
+        console.print("[bold yellow]Заметки:[/]")
+        for n in notes:
+            console.print(f"  • {n}")
+
+    # ─── Финальная плашка с баллом ────────────────────────────────────────
+    console.print()
+    if score is not None:
+        score_str = f"{score:,.0f}".replace(",", " ")
+        console.print(
+            Align.center(
+                Panel(
+                    f"[bold cyan]{score_str}[/] [dim]/ 10 000[/]",
+                    title="[bold]Итоговый балл GPU[/]",
+                    border_style="bold cyan",
+                    padding=(1, 6),
+                    expand=False,
+                )
+            )
+        )
+    else:
+        missing: list[str] = []
+        if r_fp32 is None:
+            missing.append("FP32")
+        if r_mem is None:
+            missing.append("VRAM")
+        reason = ", ".join(missing) if missing else "OpenCL/GPU недоступен"
+        console.print(
+            Align.center(
+                Panel(
+                    "[yellow]недоступно[/] [dim]/ 10 000[/]",
+                    title="[bold]Итоговый балл GPU[/]",
+                    border_style="yellow",
+                    padding=(1, 6),
+                    expand=False,
+                )
+            )
+        )
+        console.print(f"[dim]Причина: нет данных по: {reason}.[/]")
+
+    # ─── Пояснение шкалы ──────────────────────────────────────────────────
+    console.print()
+    console.print(
+        Panel(
+            "[bold]Как читать балл GPU[/]\n"
+            "Roofline-оценка: доля от [i]архитектурного[/] потолка устройства "
+            "(число CU × частота × операций за такт) по вычислениям FP32 и "
+            "пропускной способности VRAM.\n"
+            "  • [green]7000–10 000[/] — GPU реализует потенциал почти полностью\n"
+            "  • [yellow]4000–7000[/]  — типичная реализация на потребительском GPU\n"
+            "  • [red]< 4000[/]      — встроенная графика / виртуальная среда / "
+            "недогрев кернела\n"
+            "  • [dim]10 000[/]        — теоретический потолок (на реальном "
+            "железе недостижим)",
+            title="[bold]Шкала баллов GPU[/]",
+            border_style="dim",
+            expand=True,
+        )
+    )
+
+    console.print()
+    console.rule(style="dim")
+
+
+def _gpu_type_label(device_type: object) -> str:
+    """Русская подпись для класса GPU-устройства (discrete/integrated/…)."""
+    mapping = {
+        "discrete": "дискретный",
+        "integrated": "встроенный",
+        "virtual": "виртуальный",
+        "unknown": "неизвестно",
+    }
+    return mapping.get(str(device_type), str(device_type) or "неизвестно")
+
+
+# ─── GPU-стресс (термостабильность) ─────────────────────────────────────────
+
+# Оформление вердикта GPU-стресса: цвет рамки/текста + русская подпись.
+# Ключ — ``GpuStressVerdict.value`` ("pass"/"warn"/"fail"/"unknown").
+_GPU_STRESS_VERDICT_STYLE: dict[str, tuple[str, str]] = {
+    "pass":    ("bold green", "ПРОЙДЕНО — GPU держит нагрузку"),
+    "warn":    ("bold yellow", "С ЗАМЕЧАНИЯМИ — заметный settle/нагрев"),
+    "fail":    ("bold red", "НЕ ПРОЙДЕНО — тепловой троттлинг/обвал частоты"),
+    "unknown": ("dim", "НЕ ОПРЕДЕЛЁН — телеметрия недоступна"),
+}
+
+
+def render_gpu_stress_report(report: object) -> None:
+    """Финальный отчёт GPU-стресс-теста (термостабильность, «power virus»).
+
+    Порядок секций (по образцу :func:`render_gpu_report`):
+    1. Заголовок (rule; жёлтая при отмене).
+    2. Panel-шапка устройства: имя / вендор / тип / VRAM (плейсхолдер
+       ``index < 0`` → «устройство не найдено»).
+    3. Цветная Panel вердикта (PASS зелёный / WARN жёлтый / FAIL красный /
+       UNKNOWN dim) с русской подписью + длительностью прогона.
+    4. Таблица телеметрии: max/avg T°, max/avg мощность, min/avg/пик частоты,
+       ср. загрузка, тепловой лимит. ``None`` → «—».
+    5. Причины троттлинга (``throttle_reasons``) — если есть.
+    6. Заметки (``notes``) — если есть.
+    7. dim-rule — разделитель перед «Enter — продолжить».
+
+    Принимает :class:`GpuStressReport` как ``object`` (тем же приёмом, что и
+    прочие render-функции — без cross-domain импорта в модуль рендера).
+    Плейсхолдер-устройство (``index < 0``, «нет OpenCL/GPU») и любые ``None``-
+    поля отображаются корректно.
+    """
+    device = getattr(report, "device", None)
+    dev_index = getattr(device, "index", -1)
+    is_placeholder = dev_index is None or dev_index < 0
+
+    verdict = getattr(report, "verdict", None)
+    verdict_value = str(getattr(verdict, "value", verdict) or "unknown")
+    duration = float(getattr(report, "duration_sec", 0.0) or 0.0)
+    requested = float(getattr(report, "requested_duration_sec", 0.0) or 0.0)
+    cancelled = bool(getattr(report, "cancelled", False))
+
+    max_temp = getattr(report, "max_temp_c", None)
+    avg_temp = getattr(report, "avg_temp_c", None)
+    max_power = getattr(report, "max_power_w", None)
+    avg_power = getattr(report, "avg_power_w", None)
+    min_clock = getattr(report, "min_clock_mhz", None)
+    avg_clock = getattr(report, "avg_clock_mhz", None)
+    max_clock = getattr(report, "max_clock_mhz_observed", None)
+    avg_util = getattr(report, "avg_util_pct", None)
+    thermal_limit = getattr(report, "thermal_limit_c", None)
+    throttle_reasons = list(getattr(report, "throttle_reasons", []) or [])
+    notes = list(getattr(report, "notes", []) or [])
+
+    if cancelled:
+        console.rule("[bold yellow]GPU-СТРЕСС: ПРЕРВАНО ПОЛЬЗОВАТЕЛЕМ[/]")
+    else:
+        console.rule("[bold]СТРЕСС-ТЕСТ GPU (термостабильность)[/]")
+
+    # ─── Шапка устройства ─────────────────────────────────────────────────
+    console.print()
+    if is_placeholder:
+        console.print(
+            Panel(
+                "[bold]Устройство не найдено[/]\n"
+                "[dim]OpenCL/GPU недоступен — ICD-loader не загрузился или "
+                "GPU-устройств не обнаружено.[/]",
+                border_style="yellow",
+                expand=False,
+            )
+        )
+    else:
+        name = getattr(device, "name", "—") or "—"
+        vendor = getattr(device, "vendor", "") or "—"
+        dev_type = getattr(device, "device_type", None)
+        type_label = _gpu_type_label(getattr(dev_type, "value", dev_type))
+        vram_mb = getattr(device, "global_mem_mb", 0) or 0
+        vram_gb = vram_mb / 1024.0 if vram_mb else 0.0
+        console.print(
+            Panel.fit(
+                f"[bold cyan]{name}[/]\n"
+                f"Вендор: {vendor}  ·  Тип: {type_label}  ·  "
+                f"VRAM: [bold]{vram_gb:.1f}[/] ГБ",
+                title="[bold]Тестируемое устройство[/]",
+                border_style="cyan",
+            )
+        )
+
+    # ─── Плашка вердикта ──────────────────────────────────────────────────
+    style, label = _GPU_STRESS_VERDICT_STYLE.get(
+        verdict_value, _GPU_STRESS_VERDICT_STYLE["unknown"]
+    )
+    if requested > 0 and abs(duration - requested) >= 1.0:
+        dur_str = f"{duration:.0f} с (запрошено {requested:.0f} с)"
+    else:
+        dur_str = f"{duration:.0f} с"
+    console.print()
+    console.print(
+        Panel(
+            f"[{style}]{label}[/]\n[dim]Длительность нагрузки: {dur_str}[/]",
+            title="[bold]Вердикт стабильности GPU[/]",
+            border_style=style,
+            expand=False,
+        )
+    )
+
+    # ─── Таблица телеметрии ───────────────────────────────────────────────
+    def _fmt(value: float | None, unit: str, digits: int = 0) -> str:
+        if value is None:
+            return "—"
+        return f"{value:.{digits}f} {unit}"
+
+    console.print()
+    tbl = Table(
+        title="[bold]Телеметрия под нагрузкой[/]",
+        box=box.ROUNDED,
+        header_style="bold cyan",
+        title_justify="center",
+        show_lines=False,
+    )
+    tbl.add_column("Показатель", style="bold", min_width=22, no_wrap=True)
+    tbl.add_column("Значение", justify="right")
+    tbl.add_row("Температура (пик)", _fmt(max_temp, "°C", 1))
+    tbl.add_row("Температура (сред.)", _fmt(avg_temp, "°C", 1))
+    tbl.add_row("Мощность (пик)", _fmt(max_power, "Вт", 1))
+    tbl.add_row("Мощность (сред.)", _fmt(avg_power, "Вт", 1))
+    tbl.add_section()
+    tbl.add_row("Частота ядра (мин.)", _fmt(min_clock, "МГц", 0))
+    tbl.add_row("Частота ядра (сред.)", _fmt(avg_clock, "МГц", 0))
+    tbl.add_row("Частота ядра (пик)", _fmt(max_clock, "МГц", 0))
+    tbl.add_section()
+    tbl.add_row("Загрузка GPU (сред.)", _fmt(avg_util, "%", 1))
+    tbl.add_row("Тепловой лимит", _fmt(thermal_limit, "°C", 0))
+    console.print(tbl)
+
+    # ─── Причины троттлинга ───────────────────────────────────────────────
+    if throttle_reasons:
+        console.print()
+        console.print("[bold red]Признаки троттлинга:[/]")
+        for r in throttle_reasons:
+            console.print(f"  • {r}")
+
+    # ─── Заметки ──────────────────────────────────────────────────────────
+    if notes:
+        console.print()
+        console.print("[bold yellow]Заметки:[/]")
+        for n in notes:
+            console.print(f"  • {n}")
+
+    console.print()
+    console.rule(style="dim")

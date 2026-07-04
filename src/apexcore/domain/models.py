@@ -347,7 +347,7 @@ class MicroBenchSuiteResult(BaseModel):
 class OverallScore(BaseModel):
     """Итоговый балл общей оценки производительности по scoring v2.
 
-    Спецификация: ``docs/scoring_v2.md``. Принципы:
+    Спецификация: ``new-app/docs/scoring_v2.md``. Принципы:
     - Шкала ×1000: ``overall_score = 1000 · overall_ratio``.
     - ``overall_ratio = 1.0`` означает 100% теоретического архитектурного пика
       (Roofline-модель, Williams 2009).

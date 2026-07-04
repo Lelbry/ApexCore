@@ -22,6 +22,8 @@ const CATEGORIES = {
   ramcache:      'Ram & Cache',
   winsat:        'Наследие Winsat',
   general:       'Общая оценка системы',
+  gpu:           'Тест GPU',
+  gpu_stress:    'GPU-стресс',
   other:         'Другое',
 };
 
@@ -40,6 +42,9 @@ function profileToCategory(profile) {
   if (p === 'ram_cache' || p === 'ramcache' || p.startsWith('ram_cache_')) return 'ramcache';
   if (p === 'winsat' || p.startsWith('winsat_')) return 'winsat';
   if (p === 'general' || p === 'general_benchmark' || p.startsWith('general_')) return 'general';
+  // GPU-стресс проверяем ДО gpu-бенчмарка: оба profile_name начинаются с 'gpu'.
+  if (p === 'gpu_stress' || p.startsWith('gpu_stress')) return 'gpu_stress';
+  if (p === 'gpu' || p === 'gpu_benchmark' || p.startsWith('gpu_')) return 'gpu';
   return 'other';
 }
 
@@ -128,7 +133,7 @@ function refreshCategoryDropdown() {
   // Категории берём из item.type (сервер уже их классифицировал).
   const presentCats = new Set(allRuns.map(r => r.type));
   // Порядок отображения — по списку CATEGORIES.
-  const order = ['stress', 'cpu_advanced', 'ramcache', 'winsat', 'general', 'other'];
+  const order = ['stress', 'cpu_advanced', 'ramcache', 'winsat', 'general', 'gpu', 'gpu_stress', 'other'];
   const visible = order.filter(c => presentCats.has(c));
   const current = sel.value;
   sel.innerHTML = `<option value="">Все типы</option>` +

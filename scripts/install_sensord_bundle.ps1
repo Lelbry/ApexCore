@@ -165,13 +165,9 @@ function Remove-ServiceForced {
 # ───── Uninstall ─────
 if ($Uninstall) {
     Write-LogMsg '=== Удаление сервиса apexcore_sensord ===' Cyan
-    # 1. Уничтожаем текущий apexcore_sensord (если есть) с гарантированным
-    #    kill PID, чтобы файлы освободились до того как Inno начнёт удалять.
+    # Уничтожаем текущий apexcore_sensord (если есть) с гарантированным
+    # kill PID, чтобы файлы освободились до того как Inno начнёт удалять.
     Remove-ServiceForced -Name $ServiceName
-    # 2. Также legacy benchkit_sensord — если v0.8.x ещё установлен рядом.
-    if (Get-Service -Name 'benchkit_sensord' -ErrorAction SilentlyContinue) {
-        Remove-ServiceForced -Name 'benchkit_sensord'
-    }
     Write-LogMsg 'OK' Green
     exit 0
 }
@@ -185,14 +181,6 @@ if (-not (Test-Path $SensordExe)) {
     Write-LogMsg "✗ Не найден $SensordExe" Red
     Write-LogMsg '  Установщик не положил apexcore-sensord.exe — проверь сборку.' Yellow
     exit 1
-}
-
-# Backward-compat (upgrade с v0.8.x): старый сервис назывался
-# benchkit_sensord. Если он зарегистрирован — сносим через тот же helper
-# что и в Uninstall ветке. Удалить в v0.10.0.
-if (Get-Service -Name 'benchkit_sensord' -ErrorAction SilentlyContinue) {
-    Write-LogMsg 'Найден legacy-сервис benchkit_sensord (v0.8.x → v0.9.0 upgrade)' Yellow
-    Remove-ServiceForced -Name 'benchkit_sensord'
 }
 
 # Если предыдущая установка apexcore_sensord осталась — переустанавливаем.

@@ -1,0 +1,339 @@
+# Архитектурные (Roofline) параметры GPU для application/gpu_roofline.py
+#
+# Идея — та же, что у CPU-Roofline (application/roofline.py): эталон =
+# АРХИТЕКТУРНЫЙ предел железа, а не reference-машина. Пик считается по данным
+# из OpenCL clGetDeviceInfo:
+#
+#   fp32_peak_gflops = compute_units × (max_clock_mhz / 1000) × fp32_flops_per_cu_per_clock / 1000
+#   fp64_peak_gflops = fp32_peak_gflops × fp64_ratio   (None, если ratio == 0 или fp64 не поддержан)
+#
+# где compute_units — CL_DEVICE_MAX_COMPUTE_UNITS.
+#
+# ВАЖНО про единицу «compute unit» у разных вендоров (что реально отдаёт OpenCL):
+#   - NVIDIA: CU = SM (streaming multiprocessor). Consumer Ampere/Ada = 128 FP32
+#     lanes/SM, Turing = 64 FP32 lanes/SM. С FMA (×2): Ampere/Ada 256, Turing 128.
+#   - AMD:    CU = «compute unit». RDNA = 64 SP/CU. С FMA (×2) = 128. У RDNA3
+#     появился dual-issue → спецификационный (headline) пик считают как 256.
+#   - Intel:  CU = EU (execution unit), НЕ Xe-core. И на Gen12 (UHD/Iris Xe), и на
+#     Arc OpenCL рапортует именно число EU (напр. Arc A770 → 512, не 32 Xe-core).
+#     8 FP32 ALU/EU × FMA(×2) = 16 flops/EU/clock — одинаково для Gen12 и Arc.
+#
+# Значения проверены против опубликованных FP32 TFLOPS (см. anchor-комментарии).
+# fp32_flops_per_cu_per_clock уже включает множитель FMA (×2).
+#
+# Пропускная способность VRAM (mem_bandwidth_peak_gb_s) по clGetDeviceInfo
+# посчитать нельзя (шина/тип памяти не экспонируются), поэтому она берётся из
+# per-model таблицы `models` ниже. Неизвестная модель → None (память из
+# итогового балла исключается на следующей стадии). Для встроенных GPU память
+# общая с DRAM — тоже None + note (оценивать по DRAM ненадёжно: канальность/
+# частоту здесь взять неоткуда).
+#
+# Как пополнять:
+#   - Новая архитектура → добавить ключ в `architectures` (+ anchor-проверка).
+#   - Новая модель → добавить в `models` (arch pin + mem_bandwidth). Матчинг
+#     моделей приоритетнее семейного (family) распознавания.
+
+version: 1
+
+# ─── Таблица архитектур ──────────────────────────────────────────────────────
+# fp32_flops_per_cu_per_clock — flops на один OpenCL compute unit за такт (с FMA).
+# fp64_ratio — доля FP64 от FP32 (0 → устройство без аппаратного FP64 → None).
+architectures:
+  # NVIDIA Ada Lovelace (RTX 40xx). 128 FP32/SM × 2 = 256; FP64 1/64.
+  # Anchor: RTX 4070 Ti 60 SM @ 2655 MHz → 60·256·2.655/1000 = 40.78 TFLOPS
+  # (офиц. 40.09 при boost 2610). ✓
+  nvidia_ada:
+    fp32_flops_per_cu_per_clock: 256
+    fp64_ratio: 0.015625        # 1/64
+    vendor: nvidia
+
+  # NVIDIA Ampere (RTX 30xx, A-series). 128 FP32/SM × 2 = 256; FP64 1/64
+  # (consumer GA10x whitepaper: 1 FP64-core/SM).
+  # Anchor: RTX 3080 68 SM @ 1710 MHz → 68·256·1.710/1000 = 29.77 TFLOPS. ✓
+  nvidia_ampere:
+    fp32_flops_per_cu_per_clock: 256
+    fp64_ratio: 0.015625        # 1/64
+    vendor: nvidia
+
+  # NVIDIA Turing (RTX 20xx, GTX 16xx). 64 FP32/SM × 2 = 128; FP64 1/32.
+  # Anchor: RTX 2070 36 SM @ 1620 MHz → 36·128·1.620/1000 = 7.465 TFLOPS. ✓
+  nvidia_turing:
+    fp32_flops_per_cu_per_clock: 128
+    fp64_ratio: 0.03125         # 1/32
+    vendor: nvidia
+
+  # AMD RDNA2 (RX 6000, 6xxM iGPU вкл. Radeon 680M). 64 SP/CU × 2 = 128;
+  # FP64 1/16 (стандарт для игровых RDNA).
+  # Anchor: Radeon 680M 12 CU @ 2400 MHz → 12·128·2.400/1000 = 3.686 TFLOPS. ✓
+  amd_rdna2:
+    fp32_flops_per_cu_per_clock: 128
+    fp64_ratio: 0.0625          # 1/16
+    vendor: amd
+
+  # AMD RDNA3 (RX 7000, 7xxM вкл. Radeon 780M). Dual-issue: спецификационный
+  # (headline) пик = 64 SP/CU × 2(dual-issue) × 2(FMA) = 256. FP64 1/16.
+  # ВНИМАНИЕ: dual-issue в реальных FMA-кернелах срабатывает редко (Chips&Cheese),
+  # поэтому это ВЕРХНИЙ теоретический потолок — measured/peak будет занижен по
+  # сравнению с не-dual-issue железом. Так и задумано: peak = архитектурный предел.
+  # Anchor: RX 7900 XTX 96 CU @ 2500 MHz → 96·256·2.500/1000 = 61.44 TFLOPS
+  # (офиц. 61.4 dual-issue). ✓
+  amd_rdna3:
+    fp32_flops_per_cu_per_clock: 256
+    fp64_ratio: 0.0625          # 1/16
+    vendor: amd
+
+  # Intel Gen12 (UHD 7xx, Iris Xe). 8 FP32 ALU/EU × 2 = 16; без аппаратного FP64.
+  # OpenCL рапортует число EU как compute_units.
+  # Anchor: UHD 770 32 EU @ 1550 MHz → 32·16·1.550/1000 = 0.793 TFLOPS. ✓
+  intel_gen12:
+    fp32_flops_per_cu_per_clock: 16
+    fp64_ratio: 0.0             # нет аппаратного FP64 → fp64_peak = None
+    vendor: intel
+
+  # Intel Arc (Axxx, Xe-HPG). Тот же 16 flops/EU/clock; OpenCL рапортует EU
+  # (Arc A770 → 512 EU, не 32 Xe-core). Аппаратного FP64 нет (эмуляция не в счёт).
+  # Anchor: Arc A770 512 EU @ 2400 MHz → 512·16·2.400/1000 = 19.66 TFLOPS
+  # (офиц. ~19.7 при boost 2400). ✓
+  intel_arc:
+    fp32_flops_per_cu_per_clock: 16
+    fp64_ratio: 0.0             # нет аппаратного FP64 → fp64_peak = None
+    vendor: intel
+
+# ─── Семейное (family) распознавание архитектуры по имени устройства ──────────
+# Список правил, применяемых по порядку. Каждое правило: набор regex-паттернов
+# (case-insensitive, ищем через re.search в нормализованном имени) → arch.
+# Первое сработавшее правило выигрывает, поэтому более специфичные — выше.
+# Точечные per-model пины (секция `models`) имеют приоритет над этими правилами.
+family_rules:
+  # NVIDIA поколения по номеру серии.
+  - arch: nvidia_ada
+    patterns:
+      - "rtx\\s*40\\d\\d"        # RTX 4050..4090
+      - "rtx\\s*20\\d\\d\\s*ada" # проф. Ada (RTX 2000 Ada и т.п. — грубо)
+  - arch: nvidia_ampere
+    patterns:
+      - "rtx\\s*30\\d\\d"        # RTX 3050..3090
+      - "\\ba100\\b"
+      - "\\ba40\\b"
+      - "\\ba30\\b"
+      - "\\ba10\\b"
+      - "\\ba16\\b"
+      - "\\ba2\\b"
+  - arch: nvidia_turing
+    patterns:
+      - "rtx\\s*20\\d\\d"        # RTX 2060..2080
+      - "gtx\\s*16\\d\\d"        # GTX 1650..1660
+      - "\\bt4\\b"
+      - "quadro rtx"
+  # AMD RDNA3 (проверяем ДО rdna2, т.к. «7000» специфичнее).
+  - arch: amd_rdna3
+    patterns:
+      - "rx\\s*7\\d\\d\\d"       # RX 7600..7900
+      - "radeon\\s*7\\d\\dm"     # 740M/760M/780M iGPU
+      - "\\b78\\dm\\b"
+      - "\\b76\\dm\\b"
+      - "\\b74\\dm\\b"
+  - arch: amd_rdna2
+    patterns:
+      - "rx\\s*6\\d\\d\\d"       # RX 6400..6950
+      - "radeon\\s*6\\d\\dm"     # 660M/680M iGPU
+      - "\\b68\\dm\\b"
+      - "\\b66\\dm\\b"
+      - "\\b64\\dm\\b"
+  # Intel Arc (проверяем ДО gen12).
+  - arch: intel_arc
+    patterns:
+      - "\\barc\\b"
+      - "\\ba7\\d\\d\\b"         # A730M/A770 и т.п.
+      - "\\ba5\\d\\d\\b"
+      - "\\ba3\\d\\d\\b"
+  - arch: intel_gen12
+    patterns:
+      - "iris\\s*xe"
+      - "uhd\\s*graphics\\s*7\\d\\d"  # UHD 710/730/770
+      - "uhd\\s*graphics\\s*6\\d\\d"  # UHD 610..670 (Gen9.5/Gen11 — грубо в Gen12-модель)
+      - "\\bxe\\b"
+
+# ─── Точечные переопределения по модели ──────────────────────────────────────
+# Приоритетнее family_rules. `match` — regex по нормализованному имени
+# (case-insensitive). `arch` пинит архитектуру, `mem_bandwidth_peak_gb_s`
+# задаёт спецификационную пропускную способность VRAM (GB/s, null → неизвестна).
+# `note` — короткое пояснение (напр. про общую с DRAM память iGPU).
+models:
+  # ── NVIDIA дискретные ──
+  - match: "geforce rtx 4090"
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 1008.0
+  - match: "geforce rtx 4080 super"
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 736.3
+  - match: "geforce rtx 4080"
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 716.8
+  - match: "geforce rtx 4070 ti super"
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 672.3
+  - match: "geforce rtx 4070 ti"        # anchor-модель
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 504.2
+  - match: "geforce rtx 4070 super"
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 504.2
+  - match: "geforce rtx 4070"
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 504.2
+  - match: "geforce rtx 4060 ti"
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 288.0
+  - match: "geforce rtx 4060"
+    arch: nvidia_ada
+    mem_bandwidth_peak_gb_s: 272.0
+  - match: "geforce rtx 3090 ti"
+    arch: nvidia_ampere
+    mem_bandwidth_peak_gb_s: 1008.0
+  - match: "geforce rtx 3090"
+    arch: nvidia_ampere
+    mem_bandwidth_peak_gb_s: 936.2
+  - match: "geforce rtx 3080 ti"
+    arch: nvidia_ampere
+    mem_bandwidth_peak_gb_s: 912.4
+  - match: "geforce rtx 3080"
+    arch: nvidia_ampere
+    mem_bandwidth_peak_gb_s: 760.3
+  - match: "geforce rtx 3070 ti"
+    arch: nvidia_ampere
+    mem_bandwidth_peak_gb_s: 608.3
+  - match: "geforce rtx 3070"
+    arch: nvidia_ampere
+    mem_bandwidth_peak_gb_s: 448.0
+  - match: "geforce rtx 3060 ti"
+    arch: nvidia_ampere
+    mem_bandwidth_peak_gb_s: 448.0
+  - match: "geforce rtx 3060"
+    arch: nvidia_ampere
+    mem_bandwidth_peak_gb_s: 360.0
+  - match: "geforce rtx 2080 ti"
+    arch: nvidia_turing
+    mem_bandwidth_peak_gb_s: 616.0
+  - match: "geforce rtx 2070 super"
+    arch: nvidia_turing
+    mem_bandwidth_peak_gb_s: 448.0
+  - match: "geforce rtx 2070"
+    arch: nvidia_turing
+    mem_bandwidth_peak_gb_s: 448.0
+  - match: "geforce rtx 2060"
+    arch: nvidia_turing
+    mem_bandwidth_peak_gb_s: 336.0
+  - match: "geforce gtx 1660 ti"
+    arch: nvidia_turing
+    mem_bandwidth_peak_gb_s: 288.0
+  - match: "geforce gtx 1660 super"
+    arch: nvidia_turing
+    mem_bandwidth_peak_gb_s: 336.0
+  - match: "geforce gtx 1660"
+    arch: nvidia_turing
+    mem_bandwidth_peak_gb_s: 192.0
+  - match: "geforce gtx 1650"
+    arch: nvidia_turing
+    mem_bandwidth_peak_gb_s: 192.0
+
+  # ── AMD дискретные ──
+  - match: "rx 7900 xtx"
+    arch: amd_rdna3
+    mem_bandwidth_peak_gb_s: 960.0
+  - match: "rx 7900 xt"
+    arch: amd_rdna3
+    mem_bandwidth_peak_gb_s: 800.0
+  - match: "rx 7800 xt"
+    arch: amd_rdna3
+    mem_bandwidth_peak_gb_s: 624.1
+  - match: "rx 7700 xt"
+    arch: amd_rdna3
+    mem_bandwidth_peak_gb_s: 432.0
+  - match: "rx 7600"
+    arch: amd_rdna3
+    mem_bandwidth_peak_gb_s: 288.0
+  - match: "rx 6950 xt"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: 576.0
+  - match: "rx 6900 xt"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: 512.0
+  - match: "rx 6800 xt"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: 512.0
+  - match: "rx 6800"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: 512.0
+  - match: "rx 6700 xt"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: 384.0
+  - match: "rx 6600 xt"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: 256.0
+  - match: "rx 6600"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: 224.0
+
+  # ── AMD встроенные (iGPU) — память общая с системной DRAM ──
+  # Пропускная способность зависит от конфигурации DDR5/LPDDR5 хоста
+  # (частота/канальность), из OpenCL недоступна → None + note. Следующая
+  # стадия исключит память из балла, оставит FP32/FP64.
+  - match: "radeon 780m"
+    arch: amd_rdna3
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU: память общая с системной LPDDR5/DDR5, пик VRAM не определён"
+  - match: "radeon 760m"
+    arch: amd_rdna3
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU: память общая с системной LPDDR5/DDR5, пик VRAM не определён"
+  - match: "radeon 740m"
+    arch: amd_rdna3
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU: память общая с системной LPDDR5/DDR5, пик VRAM не определён"
+  - match: "radeon 680m"                # тест-стенд Astra (Ryzen 7 6800H)
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU: память общая с системной LPDDR5/DDR5, пик VRAM не определён"
+  - match: "radeon 660m"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU: память общая с системной LPDDR5/DDR5, пик VRAM не определён"
+  # Родовое имя AMD iGPU в OpenCL/драйвере, когда конкретная модель не указана.
+  # Часто = RDNA2 Cezanne/Rembrandt Vega/RDNA2. Пинить надёжно нельзя, но RDNA2
+  # — самая частая; память в любом случае общая → None.
+  # Имя приходит уже нормализованным (без «(tm)»): "amd radeon graphics".
+  # Требуем конец строки/пробел после "graphics", чтобы не поглотить
+  # "uhd graphics"/конкретные модели (те матчатся своими правилами раньше).
+  - match: "^amd radeon graphics$"
+    arch: amd_rdna2
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU (родовое имя): архитектура/память не детерминированы, пик VRAM не определён"
+
+  # ── Intel дискретные Arc ──
+  - match: "arc a770"
+    arch: intel_arc
+    mem_bandwidth_peak_gb_s: 559.9
+  - match: "arc a750"
+    arch: intel_arc
+    mem_bandwidth_peak_gb_s: 512.0
+  - match: "arc a580"
+    arch: intel_arc
+    mem_bandwidth_peak_gb_s: 512.0
+  - match: "arc a380"
+    arch: intel_arc
+    mem_bandwidth_peak_gb_s: 186.0
+
+  # ── Intel встроенные (iGPU) — память общая с системной DRAM ──
+  - match: "uhd graphics 770"           # тест-стенд Windows (i9-12900K)
+    arch: intel_gen12
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU: память общая с системной DDR4/DDR5, пик VRAM не определён"
+  - match: "uhd graphics 730"
+    arch: intel_gen12
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU: память общая с системной DDR4/DDR5, пик VRAM не определён"
+  - match: "iris xe graphics"
+    arch: intel_gen12
+    mem_bandwidth_peak_gb_s: null
+    note: "iGPU: память общая с системной LPDDR4x/DDR5, пик VRAM не определён"

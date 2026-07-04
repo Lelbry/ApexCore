@@ -1,6 +1,6 @@
 """Балл «Оценок общей производительности» — детерминированный композитный score.
 
-Спецификация: ``docs/general_benchmark.md``.
+Спецификация: ``new-app/docs/general_benchmark.md``.
 
 Идея — та же, что и у :mod:`stress_score`: безразмерные ratio
 ``measured / roofline_peak``, агрегированные через геометрическое среднее

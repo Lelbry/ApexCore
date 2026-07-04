@@ -24,7 +24,7 @@ apexcore doctor
 
 ### `NO_LHM_DLL` — DLL LibreHardwareMonitor не найдена в `sensors/lib/`
 
-С v0.5.1 DLL коммитятся в git, поэтому при свежем checkout они должны
+С v0.5.1 DLL коммитятся в git, поэтому в свежем worktree они должны
 быть. Если их нет — вы либо обновляетесь с более старой версии, либо
 руками удалили `lib/*.dll`.
 
@@ -35,11 +35,11 @@ apexcore doctor
 apexcore doctor --repair
 
 # Или вручную:
-powershell -ExecutionPolicy Bypass -File scripts\fetch_lhm.ps1
+powershell -ExecutionPolicy Bypass -File new-app\scripts\fetch_lhm.ps1
 ```
 
 Скрипт скачивает LHM v0.9.6 с GitHub Releases (~700 КБ), проверяет
-SHA256 и кладёт DLL в `src/apexcore/infrastructure/sensors/lib/`.
+SHA256 и кладёт DLL в `new-app/src/apexcore/infrastructure/sensors/lib/`.
 
 ---
 
@@ -130,7 +130,7 @@ EasyAntiCheat).
 
 **Решение:**
 
-1. Добавить исключение для папки с LHM DLL: `src/apexcore/
+1. Добавить исключение для папки с LHM DLL: `new-app/src/apexcore/
    infrastructure/sensors/lib/` в настройках AV.
 2. Или установить PawnIO / HWiNFO как альтернативу.
 
@@ -154,7 +154,8 @@ apexcore
 ```
 
 Если ставили через Inno-installer с галкой `apexcore_sensord` — admin не
-нужен, сервис уже зарегистрирован.
+нужен, сервис уже зарегистрирован. Альтернатива для dev-окружения:
+`.\new-app\scripts\dev.ps1` (self-elevating wrapper, см. CLAUDE.md).
 
 ---
 
@@ -162,7 +163,7 @@ apexcore
 
 Редкий сценарий: ``import wmi`` в background-thread без CoInitialize.
 apexcore уже обрабатывает это через флаг `_WMI_PACKAGE_BROKEN` (см.
-`ARCHITECTURE.md`) — переключается на CIM-fallback через PowerShell. Если
+`CLAUDE.md`) — переключается на CIM-fallback через PowerShell. Если
 ошибка всё-таки видна — pull-request приветствуется.
 
 ---
@@ -232,6 +233,18 @@ apexcore ограничивается одной ACPI thermal zone (~chassis tem
 1. Запустите `apexcore doctor` — он покажет конкретный `DegradedReason`
    (HVCI/SAC/Defender/no_admin).
 2. Следуйте советам по дереву решений выше.
+
+### `dev.ps1` не работает / не находит venv (dev-окружение)
+
+`dev.ps1` — опциональный dev-launcher, не required runtime. Скрипт ищет
+`.venv` через `git rev-parse --git-common-dir`. Если запуск из worktree,
+где `.venv` отсутствует — он подхватывает venv основного репо
+(`E:\Benchmark\.venv`).
+
+Если в worktree нет `new-app/scripts/dev.ps1` — скопируйте из основного
+репо или из ветки где он есть. См. `new-app/CLAUDE.md` секцию «dev.ps1 в
+новом worktree». Для тестов установленной apexcore-сборки этот скрипт
+не нужен — обычный `apexcore.exe` из PATH работает напрямую.
 
 ---
 

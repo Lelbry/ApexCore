@@ -8,17 +8,14 @@ case "$1" in
     remove|upgrade|deconfigure)
         # Если запущен webui — найти PID и попросить остановиться.
         # Wizard не оставляет демонов, но `apexcore webui` запущенный
-        # пользователем мог остаться. Также ловим старые `benchkit webui`
-        # процессы (backward-compat для in-flight upgrade с v0.8.x; удалить
-        # в v0.10.0).
-        for pattern in 'apexcore.*webui' 'benchkit.*webui'; do
-            if pgrep -f "$pattern" >/dev/null 2>&1; then
-                echo "Останавливаю запущенные процессы ($pattern)..."
-                pkill -TERM -f "$pattern" >/dev/null 2>&1 || true
-                sleep 1
-                pkill -KILL -f "$pattern" >/dev/null 2>&1 || true
-            fi
-        done
+        # пользователем мог остаться.
+        pattern='apexcore.*webui'
+        if pgrep -f "$pattern" >/dev/null 2>&1; then
+            echo "Останавливаю запущенные процессы ($pattern)..."
+            pkill -TERM -f "$pattern" >/dev/null 2>&1 || true
+            sleep 1
+            pkill -KILL -f "$pattern" >/dev/null 2>&1 || true
+        fi
         ;;
 esac
 

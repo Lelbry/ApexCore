@@ -6,7 +6,7 @@
 #
 # Идемпотентен: пересобирает только если source новее target.
 #
-# Запуск: bash scripts/build_branding.sh
+# Запуск: bash new-app/scripts/build_branding.sh
 #
 # Используется в scripts/build_astra.sh (шаг [1/6]).
 

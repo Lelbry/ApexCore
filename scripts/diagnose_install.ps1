@@ -189,11 +189,11 @@ if (Test-Path $svcReg) {
     }
 } else { Add-Line '  ключа нет' }
 
-# Все сервисы с pawn/bench/sensord в имени — на случай других вариантов
+# Все сервисы с pawn/sensord в имени — на случай других вариантов
 Add-Line ''
-Add-Line '— все сервисы соответствующие *pawn*|*bench*|*sensord* —'
+Add-Line '— все сервисы соответствующие *pawn*|*sensord* —'
 $all = Get-Service -ErrorAction SilentlyContinue | Where-Object {
-    $_.Name -match 'pawn|bench|sensord' -or $_.DisplayName -match 'PawnIO|apexcore'
+    $_.Name -match 'pawn|sensord' -or $_.DisplayName -match 'PawnIO|apexcore'
 }
 if ($all) {
     $all | ForEach-Object {
@@ -294,7 +294,7 @@ if ($apexcoreInstallDir -and $systemPath -match [Regex]::Escape($apexcoreInstall
 }
 
 # ---------- 10. Smoke: shared memory snapshot ----------
-Add-Section '10. Smoke-тест: чтение Global\benchkit_sensors snapshot'
+Add-Section '10. Smoke-тест: чтение Global\apexcore_sensors snapshot'
 $apexcoreExe = $null
 if ($apexcoreInstallDir) {
     $candidate = Join-Path $apexcoreInstallDir 'apexcore.exe'

@@ -30,6 +30,7 @@ import typer
 
 from apexcore import __version__
 from apexcore.interfaces.cli.commands import bench as bench_cmd
+from apexcore.interfaces.cli.commands import gpu as gpu_cmd
 from apexcore.interfaces.cli.commands import micro as micro_cmd
 from apexcore.interfaces.cli.commands import ram_cache as ram_cache_cmd
 from apexcore.interfaces.cli.commands import runs as runs_cmd
@@ -113,6 +114,7 @@ app.command(
 app.add_typer(stress_cmd.app, name="stress", rich_help_panel=_PANEL_TESTS)
 app.add_typer(bench_cmd.app, name="bench", rich_help_panel=_PANEL_TESTS)
 app.add_typer(micro_cmd.app, name="micro", rich_help_panel=_PANEL_TESTS)
+app.add_typer(gpu_cmd.app, name="gpu", rich_help_panel=_PANEL_TESTS)
 app.add_typer(ram_cache_cmd.app, name="ram-cache", rich_help_panel=_PANEL_TESTS)
 app.add_typer(winsat_cmd.app, name="winsat", rich_help_panel=_PANEL_TESTS)
 
@@ -153,7 +155,7 @@ def _warn_if_lhm_dll_missing(invoked_subcommand: str | None) -> None:
     """Жёлтый баннер на старте CLI, если на Windows нет LHM-DLL.
 
     Защита от тихого регресса issue #20: dev-пользователь забыл запустить
-    `fetch_lhm.ps1` после `pip install -e ".[dev]"`, и без DLL у
+    `fetch_lhm.ps1` после `pip install -e ".\\new-app[dev]"`, и без DLL у
     него нет ни CPU-температуры, ни watchdog'а, ни корректного финального
     отчёта стресса. Текущий путь — заметить это только дойдя до стресса;
     с этим баннером — сразу при любом первом запуске `apexcore`.
@@ -185,7 +187,7 @@ def _warn_if_lhm_dll_missing(invoked_subcommand: str | None) -> None:
                 "(LHM/WinRing0 не запустится). Скачайте DLL одной командой "
                 "из корня репозитория (без админа):\n\n"
                 "    [bold]powershell -ExecutionPolicy Bypass "
-                "-File \scripts\\fetch_lhm.ps1[/]\n\n"
+                "-File new-app\\scripts\\fetch_lhm.ps1[/]\n\n"
                 "Подробности и полная диагностика: [bold]apexcore doctor[/]",
                 border_style="yellow",
                 expand=False,
@@ -212,11 +214,6 @@ def root(
     version: bool = typer.Option(False, "--version", help="Показать версию и выйти.", is_eager=True),
 ) -> None:
     """Глобальные опции."""
-    # Deprecation alert первым делом — даже для --version, чтобы пользователи
-    # старой команды `benchkit` видели подсказку в любом сценарии.
-    # Console-script entry point указывает напрямую на Typer-app, минуя main(),
-    # поэтому проверку делаем в callback (root() вызывается всегда).
-    _warn_if_invoked_as_benchkit()
     if version:
         typer.echo(f"apexcore {__version__}")
         raise typer.Exit()
@@ -243,29 +240,8 @@ def root(
         run_menu()
 
 
-def _warn_if_invoked_as_benchkit() -> None:
-    """Deprecation: команда ``benchkit`` оставлена как alias до v0.10.0.
-
-    Если пользователь явно запустил `benchkit ...` (старое имя), печатаем
-    short-warning в stderr один раз за процесс. Сам вызов всё равно
-    обрабатывается через apexcore (один и тот же entry point).
-    """
-    import os as _os
-    if not _sys.argv:
-        return
-    basename = _os.path.basename(_sys.argv[0]).lower()
-    # На Windows может быть "benchkit.exe", на Linux — "benchkit"
-    if basename in {"benchkit", "benchkit.exe", "benchkit-script.py"}:
-        print(
-            "apexcore: команда `benchkit` устарела и будет удалена в v0.10.0. "
-            "Используйте `apexcore` (тот же функционал).",
-            file=_sys.stderr,
-        )
-
-
 def main() -> None:
     """Точка входа консольного скрипта (см. pyproject.toml)."""
-    _warn_if_invoked_as_benchkit()
     app()
 
 

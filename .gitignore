@@ -19,22 +19,3 @@ htmlcov/
 *.sqlite3
 .apexcore/
 apexcore_data/
-# legacy v0.8.x — keep ignored for migrating users
-.benchkit/
-benchkit_data/
-
-# Installer build artifacts (branding + bundled deps + bootstrapper)
-packaging/astra/wheels/
-packaging/astra/python-standalone/
-packaging/astra/build/
-packaging/astra/debian/apexcore/
-packaging/astra/debian/.debhelper/
-packaging/astra/debian/files
-packaging/astra/debian/*.substvars
-packaging/astra/debian/*.log
-packaging/windows/bootstrapper/bin/
-packaging/windows/bootstrapper/obj/
-# Resources/wwwroot копируется build-скриптом из src/.../static/setup/ — в git только .gitkeep
-packaging/windows/bootstrapper/Resources/wwwroot/*
-!packaging/windows/bootstrapper/Resources/wwwroot/.gitkeep
-*.log

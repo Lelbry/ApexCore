@@ -7,7 +7,7 @@
 #   3. If both fail => warning + exit 0 (NOT throw). Installer is not broken;
 #      it falls back to runtime winget install (same as before bundling).
 #
-# Usage: pwsh -File scripts/fetch_smartmontools.ps1
+# Usage: pwsh -File new-app/scripts/fetch_smartmontools.ps1
 # Idempotent.
 #
 # Comments are intentionally ASCII-only to avoid Windows PowerShell 5.1

@@ -1015,14 +1015,271 @@ class _RamCacheController:
         return self.status()
 
 
+class _GpuController:
+    """Фоновый контроллер GPU-бенчмарка (Roofline, шкала ×10 000).
+
+    Мирроринг :class:`_GeneralController` + `_RamCacheController`: прогон в
+    отдельном потоке через :class:`GpuBenchmarkOrchestrator`, сохранение
+    результата в таблицу ``gpu_benchmark_runs`` через
+    :class:`SqliteGpuBenchmarkRepository`. В отличие от общей оценки, балл
+    (``score``) считает сам оркестратор — тут его пересчитывать не нужно.
+
+    ``last_result`` держит ``report.model_dump(mode="json")`` последнего
+    прогона in-memory (как Ram&Cache) — frontend читает его прямо из
+    ``status()`` без отдельного запроса к репозиторию. Отчёт всё равно
+    пишется в БД для истории. Отмена — через ``cancel_token`` (как в
+    оркестраторе: последующие фазы не запускаются).
+
+    Прогон graceful даже без GPU: оркестратор вернёт отчёт со ``score=None``
+    и note «OpenCL/GPU недоступен» — поток завершится статусом ``completed``
+    (это валидный результат, а не ошибка).
+    """
+
+    def __init__(self, adapter, db_path: Path) -> None:
+        self._adapter = adapter
+        self._db_path = db_path
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._job_id: str | None = None
+        self._status: str = "idle"
+        self._started_at: datetime | None = None
+        self._error: str | None = None
+        self._progress: dict[str, Any] = {"phase": "", "idx": 0, "total": 5}
+        self._last_result: dict[str, Any] | None = None
+        self._cancel_token: threading.Event | None = None
+
+    def status(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "running": self._thread is not None and self._thread.is_alive(),
+                "job_id": self._job_id,
+                "status": self._status,
+                "started_at": self._started_at.isoformat() if self._started_at else None,
+                "error": self._error,
+                "progress": dict(self._progress),
+                "last_result": self._last_result,
+            }
+
+    def start(
+        self,
+        *,
+        device_index: int = 0,
+        fp32_duration_sec: float = 5.0,
+        fp64_duration_sec: float = 5.0,
+        mem_duration_sec: float = 5.0,
+        pcie_duration_sec: float = 2.0,
+        cooldown_sec: float = 2.0,
+    ) -> dict[str, Any]:
+        if device_index < 0:
+            raise ValueError("device_index должен быть ≥ 0")
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                raise RuntimeError("GPU-тест уже выполняется")
+            self._job_id = str(uuid.uuid4())
+            self._status = "running"
+            self._started_at = datetime.now(timezone.utc)
+            self._error = None
+            self._progress = {"phase": "", "idx": 0, "total": 5}
+            self._cancel_token = threading.Event()
+
+            # Сигнатура ДОЛЖНА совпадать с ProgressCallback оркестратора
+            # (gpu_benchmark.py): on_progress(phase, idx, total). Фазы:
+            # fp32 / fp64 / mem_bandwidth / pcie_h2d / pcie_d2h (total=5).
+            def _on_progress(phase: str, idx: int, total: int) -> None:
+                with self._lock:
+                    self._progress = {"phase": phase, "idx": idx, "total": total}
+
+            def _run() -> None:
+                # Тяжёлые импорты (OpenCL-бэкенд, репозиторий) — внутри потока,
+                # чтобы не грузить их на старте процесса.
+                from apexcore.application.gpu_benchmark import (
+                    GpuBenchmarkOrchestrator,
+                    GpuBenchmarkParams,
+                )
+                from apexcore.infrastructure.gpu import build_default_gpu_backend
+                from apexcore.infrastructure.persistence import (
+                    SqliteGpuBenchmarkRepository,
+                )
+                try:
+                    backend = build_default_gpu_backend()
+                    orchestrator = GpuBenchmarkOrchestrator(self._adapter, backend)
+                    params = GpuBenchmarkParams(
+                        fp32_duration_sec=fp32_duration_sec,
+                        fp64_duration_sec=fp64_duration_sec,
+                        mem_duration_sec=mem_duration_sec,
+                        pcie_duration_sec=pcie_duration_sec,
+                        cooldown_sec=cooldown_sec,
+                    )
+                    report = orchestrator.run(
+                        device_index=device_index,
+                        params=params,
+                        cancel_token=self._cancel_token,
+                        on_progress=_on_progress,
+                    )
+                    # Сохраняем в БД (история). Отчёт без GPU (device.index == -1,
+                    # score=None) тоже валиден — репозиторий его примет.
+                    repo = SqliteGpuBenchmarkRepository(self._db_path)
+                    try:
+                        repo.save(report)
+                    finally:
+                        repo.close()
+                    with self._lock:
+                        self._last_result = report.model_dump(mode="json")
+                        self._status = "cancelled" if report.cancelled else "completed"
+                except Exception as exc:
+                    logger.exception("GPU-бенчмарк упал")
+                    with self._lock:
+                        self._status = "failed"
+                        self._error = str(exc)
+
+            t = threading.Thread(
+                target=_run, name=f"webui-gpu-{self._job_id}", daemon=True,
+            )
+            self._thread = t
+            t.start()
+        return self.status()
+
+    def stop(self) -> dict[str, Any]:
+        with self._lock:
+            if self._cancel_token is not None:
+                self._cancel_token.set()
+        return self.status()
+
+
+class _GpuStressController:
+    """Фоновый контроллер GPU-стресс-теста (термостабильность, вердикт PASS/WARN/FAIL).
+
+    Мирроринг :class:`_GpuController`, но headline это не балл, а вердикт
+    (``verdict``). Прогон в отдельном потоке через
+    :class:`GpuStressOrchestrator`; сохранение отчёта в таблицу
+    ``gpu_stress_runs`` через :class:`SqliteGpuStressRepository`.
+
+    ``last_result`` держит ``report.model_dump(mode="json")`` последнего прогона
+    in-memory (как GPU-бенчмарк) — frontend читает его прямо из ``status()``.
+    Отчёт всё равно пишется в БД для истории. Отмена — через ``cancel_token``
+    (оркестратор досемплирует хвост и вернёт вердикт по частичным данным).
+
+    Прогон graceful даже без GPU: оркестратор вернёт отчёт с
+    ``verdict="unknown"`` + note «OpenCL/GPU недоступен» — поток завершится
+    статусом ``completed`` (это валидный результат, а не ошибка).
+
+    В отличие от GPU-бенчмарка прогресс приходит из оркестратора как
+    ``on_progress(elapsed_sec, duration_sec)`` (два float'а, а не phase/idx/total)
+    — храним оба под ``_lock`` для progress-бара «прошло / всего».
+    """
+
+    def __init__(self, adapter, db_path: Path) -> None:
+        self._adapter = adapter
+        self._db_path = db_path
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._job_id: str | None = None
+        self._status: str = "idle"
+        self._started_at: datetime | None = None
+        self._error: str | None = None
+        # progress: сколько секунд прошло из общей длительности прогона.
+        self._progress: dict[str, Any] = {"elapsed_sec": 0.0, "duration_sec": 0.0}
+        self._last_result: dict[str, Any] | None = None
+        self._cancel_token: threading.Event | None = None
+
+    def status(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "running": self._thread is not None and self._thread.is_alive(),
+                "job_id": self._job_id,
+                "status": self._status,
+                "started_at": self._started_at.isoformat() if self._started_at else None,
+                "error": self._error,
+                "progress": dict(self._progress),
+                "last_result": self._last_result,
+            }
+
+    def start(
+        self,
+        *,
+        device_index: int = 0,
+        duration_sec: float = 60.0,
+    ) -> dict[str, Any]:
+        if device_index < 0:
+            raise ValueError("device_index должен быть ≥ 0")
+        if duration_sec <= 0:
+            raise ValueError("duration_sec должен быть > 0")
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                raise RuntimeError("GPU-стресс уже выполняется")
+            self._job_id = str(uuid.uuid4())
+            self._status = "running"
+            self._started_at = datetime.now(timezone.utc)
+            self._error = None
+            self._progress = {"elapsed_sec": 0.0, "duration_sec": float(duration_sec)}
+            self._cancel_token = threading.Event()
+
+            # Сигнатура ДОЛЖНА совпадать с ProgressCallback оркестратора
+            # (gpu_stress.py): on_progress(elapsed_sec, duration_sec) — оба float.
+            def _on_progress(elapsed_sec: float, total_sec: float) -> None:
+                with self._lock:
+                    self._progress = {
+                        "elapsed_sec": float(elapsed_sec),
+                        "duration_sec": float(total_sec),
+                    }
+
+            def _run() -> None:
+                # Тяжёлые импорты (OpenCL-бэкенд, репозиторий) — внутри потока,
+                # чтобы не грузить их на старте процесса.
+                from apexcore.application.gpu_stress import GpuStressOrchestrator
+                from apexcore.infrastructure.gpu import build_default_gpu_backend
+                from apexcore.infrastructure.persistence import (
+                    SqliteGpuStressRepository,
+                )
+                try:
+                    backend = build_default_gpu_backend()
+                    orchestrator = GpuStressOrchestrator(self._adapter, backend)
+                    report = orchestrator.run(
+                        device_index=device_index,
+                        duration_sec=duration_sec,
+                        cancel_token=self._cancel_token,
+                        on_progress=_on_progress,
+                    )
+                    # Сохраняем в БД (история). Отчёт без GPU (verdict=unknown)
+                    # тоже валиден — репозиторий его примет.
+                    repo = SqliteGpuStressRepository(self._db_path)
+                    try:
+                        repo.save(report)
+                    finally:
+                        repo.close()
+                    with self._lock:
+                        self._last_result = report.model_dump(mode="json")
+                        self._status = "cancelled" if report.cancelled else "completed"
+                except Exception as exc:
+                    logger.exception("GPU-стресс упал")
+                    with self._lock:
+                        self._status = "failed"
+                        self._error = str(exc)
+
+            t = threading.Thread(
+                target=_run, name=f"webui-gpu-stress-{self._job_id}", daemon=True,
+            )
+            self._thread = t
+            t.start()
+        return self.status()
+
+    def stop(self) -> dict[str, Any]:
+        with self._lock:
+            if self._cancel_token is not None:
+                self._cancel_token.set()
+        return self.status()
+
+
 # ─── §9.9 helpers: lookup / export / delete для разных типов прогонов ────────
 
 # Человекочитаемые имена типов для UI / имени файла экспорта.
 _RUN_KIND_LABEL: dict[str, str] = {
-    "stress":  "Стресс-тест",
-    "micro":   "Расш. тест CPU",
-    "winsat":  "Winsat",
-    "general": "Общая оценка",
+    "stress":     "Стресс-тест",
+    "micro":      "Расш. тест CPU",
+    "winsat":     "Winsat",
+    "general":    "Общая оценка",
+    "gpu":        "Тест GPU",
+    "gpu_stress": "GPU-стресс",
 }
 
 
@@ -1030,21 +1287,26 @@ def _lookup_run(db_path, run_id_or_prefix: str):
     """Найти прогон по UUID/префиксу в одном из 4 репозиториев.
 
     Возвращает (kind, real_id, model) или (None, None, None) если не найден.
-    Порядок проверки: stress → micro → winsat → general (любая фиксированная
-    последовательность; UUID коллизии между типами исключены).
+    Порядок проверки: stress → micro → winsat → general → gpu → gpu_stress
+    (любая фиксированная последовательность; UUID коллизии между типами
+    исключены).
     """
     from apexcore.infrastructure.persistence import (
         SqliteGeneralBenchmarkRepository,
+        SqliteGpuBenchmarkRepository,
+        SqliteGpuStressRepository,
         SqliteMicroRunRepository,
         SqliteResultRepository,
         SqliteWinsatRepository,
     )
 
     for kind, repo_cls in [
-        ("stress",  SqliteResultRepository),
-        ("micro",   SqliteMicroRunRepository),
-        ("winsat",  SqliteWinsatRepository),
-        ("general", SqliteGeneralBenchmarkRepository),
+        ("stress",     SqliteResultRepository),
+        ("micro",      SqliteMicroRunRepository),
+        ("winsat",     SqliteWinsatRepository),
+        ("general",    SqliteGeneralBenchmarkRepository),
+        ("gpu",        SqliteGpuBenchmarkRepository),
+        ("gpu_stress", SqliteGpuStressRepository),
     ]:
         repo = repo_cls(db_path)
         try:
@@ -1143,7 +1405,61 @@ def _run_to_csv(kind: str, model) -> str:
                 unit,
             ])
         return buf.getvalue()
+    if kind == "gpu":
+        buf.write(f"# apexcore_run={model.id}\n")
+        buf.write("# kind=gpu\n")
+        if model.score is not None:
+            buf.write(f"# score={model.score:.2f}\n")
+        buf.write(f"# device={model.device.name}\n")
+        buf.write(f"# start={model.started_at.isoformat()}\n")
+        buf.write(f"# end={model.ended_at.isoformat()}\n")
+        writer = csv.writer(buf)
+        writer.writerow(["metric", "value", "peak", "ratio", "unit"])
+        # GPU-бенчмарк поля: fp32/mem (в балле) + fp64/pcie (информационно).
+        for name, val, peak, ratio, unit in [
+            ("fp32", model.fp32_gflops, model.fp32_peak_gflops, model.r_fp32, "GFLOPS"),
+            ("mem_bandwidth", model.mem_bandwidth_gb_s,
+             model.mem_bandwidth_peak_gb_s, model.r_mem, "GB/s"),
+            ("fp64", model.fp64_gflops, None, model.r_fp64, "GFLOPS"),
+            ("pcie_h2d", model.pcie_h2d_gb_s, None, None, "GB/s"),
+            ("pcie_d2h", model.pcie_d2h_gb_s, None, None, "GB/s"),
+        ]:
+            writer.writerow([
+                name,
+                "" if val is None else f"{val:.2f}",
+                "" if peak is None else f"{peak:.2f}",
+                "" if ratio is None else f"{ratio:.4f}",
+                unit,
+            ])
+        return buf.getvalue()
+    if kind == "gpu_stress":
+        buf.write(f"# apexcore_run={model.id}\n")
+        buf.write("# kind=gpu_stress\n")
+        buf.write(f"# verdict={model.verdict.value}\n")
+        buf.write(f"# device={model.device.name}\n")
+        buf.write(f"# duration_sec={model.duration_sec:.1f}\n")
+        buf.write(f"# start={model.started_at.isoformat()}\n")
+        buf.write(f"# end={model.ended_at.isoformat()}\n")
+        writer = csv.writer(buf)
+        # Посекундные отсчёты телеметрии — основные данные (для графика).
+        writer.writerow(["t_sec", "temp_c", "power_w", "clock_mhz", "util_pct"])
+        for s in model.samples:
+            writer.writerow([
+                f"{s.t_sec:.1f}",
+                "" if s.temp_c is None else f"{s.temp_c:.1f}",
+                "" if s.power_w is None else f"{s.power_w:.1f}",
+                "" if s.clock_mhz is None else f"{s.clock_mhz:.0f}",
+                "" if s.util_pct is None else f"{s.util_pct:.0f}",
+            ])
+        return buf.getvalue()
     raise ValueError(f"Неизвестный тип прогона: {kind}")
+
+
+def _fmt_opt(value: float | None, unit: str = "", digits: int = 1) -> str:
+    """Отформатировать опциональное число с единицей, None → «—»."""
+    if value is None:
+        return "—"
+    return f"{value:.{digits}f}{unit}"
 
 
 def _run_to_html(kind: str, model) -> str:
@@ -1243,6 +1559,55 @@ def _run_to_html(kind: str, model) -> str:
              f"{(model.disk_seq_read_mb_s or 0):.0f} MB/s · r = {(model.r_disk or 0):.4f}"),
         ]
         body = section("Метаданные", meta_rows) + section("Компоненты", component_rows)
+    elif kind == "gpu":
+        meta_rows += [
+            ("Устройство", model.device.name),
+            ("Начало", model.started_at.isoformat()),
+            ("Конец",  model.ended_at.isoformat()),
+            ("Итоговый балл", "—" if model.score is None else f"{model.score:.0f} / 10000"),
+            ("CPU", model.system_info.cpu_model),
+        ]
+        component_rows = [
+            ("FP32 (в балле)",
+             f"{(model.fp32_gflops or 0):.0f} GFLOPS · r = {(model.r_fp32 or 0):.4f}"),
+            ("VRAM bandwidth (в балле)",
+             f"{(model.mem_bandwidth_gb_s or 0):.1f} GB/s · r = {(model.r_mem or 0):.4f}"),
+            ("FP64 (информационно)",
+             f"{(model.fp64_gflops or 0):.0f} GFLOPS · r = {(model.r_fp64 or 0):.4f}"),
+            ("PCIe host→device",
+             "—" if model.pcie_h2d_gb_s is None else f"{model.pcie_h2d_gb_s:.1f} GB/s"),
+            ("PCIe device→host",
+             "—" if model.pcie_d2h_gb_s is None else f"{model.pcie_d2h_gb_s:.1f} GB/s"),
+        ]
+        body = section("Метаданные", meta_rows) + section("Компоненты", component_rows)
+    elif kind == "gpu_stress":
+        meta_rows += [
+            ("Устройство", model.device.name),
+            ("Начало", model.started_at.isoformat()),
+            ("Конец",  model.ended_at.isoformat()),
+            ("Длительность, с", f"{model.duration_sec:.1f}"),
+            ("Вердикт", model.verdict.value.upper()),
+            ("CPU", model.system_info.cpu_model),
+        ]
+        summary_rows = [
+            ("Температура (пик / средн.)",
+             f"{_fmt_opt(model.max_temp_c, '°C')} / {_fmt_opt(model.avg_temp_c, '°C')}"),
+            ("Мощность (пик / средн.)",
+             f"{_fmt_opt(model.max_power_w, ' Вт')} / {_fmt_opt(model.avg_power_w, ' Вт')}"),
+            ("Частота ядра (средн. / мин.)",
+             f"{_fmt_opt(model.avg_clock_mhz, ' МГц', 0)} / {_fmt_opt(model.min_clock_mhz, ' МГц', 0)}"),
+            ("Средняя загрузка", _fmt_opt(model.avg_util_pct, '%', 0)),
+            ("Тепловой лимит", _fmt_opt(model.thermal_limit_c, '°C', 0)),
+            ("Троттлинг", "да" if model.throttle_detected else "нет"),
+        ]
+        reason_rows = [("причина", r) for r in (model.throttle_reasons or [])]
+        note_rows = [("примечание", n) for n in (model.notes or [])]
+        body = (
+            section("Метаданные", meta_rows)
+            + section("Сводка телеметрии", summary_rows)
+            + (section("Троттлинг", reason_rows) if reason_rows else "")
+            + (section("Примечания", note_rows) if note_rows else "")
+        )
     else:
         body = section("Метаданные", meta_rows)
 
@@ -1361,6 +1726,10 @@ def create_app() -> FastAPI:
     winsat_ctrl = _WinsatController(adapter=adapter, db_path=settings.db_path)
     # §9.6 — Ram & Cache (in-memory, без БД — диагностический тест).
     ramcache_ctrl = _RamCacheController(adapter=adapter)
+    # §9.5 — GPU-бенчмарк (Roofline OpenCL, persistence в gpu_benchmark_runs).
+    gpu_ctrl = _GpuController(adapter=adapter, db_path=settings.db_path)
+    # §9.5 — GPU-стресс (термостабильность, persistence в gpu_stress_runs).
+    gpu_stress_ctrl = _GpuStressController(adapter=adapter, db_path=settings.db_path)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -1477,6 +1846,8 @@ def create_app() -> FastAPI:
         from apexcore.application.parallel_runner import ParallelStressResult
         from apexcore.infrastructure.persistence import (
             SqliteGeneralBenchmarkRepository,
+            SqliteGpuBenchmarkRepository,
+            SqliteGpuStressRepository,
             SqliteMicroRunRepository,
             SqliteWinsatRepository,
         )
@@ -1656,6 +2027,60 @@ def create_app() -> FastAPI:
             # Аналог F-15: см. комментарий выше у history: stress_score.
             logger.exception("history: winsat list failed: %s", exc)
 
+        # 5. GPU-бенчмарк (таблица gpu_benchmark_runs). Headline — балл ×10 000
+        #    (как general), считает сам оркестратор → берём напрямую.
+        try:
+            gpu_repo = SqliteGpuBenchmarkRepository(settings.db_path)
+            for g in gpu_repo.list_runs(limit=limit):
+                gpu_score = float(g.score) if g.score is not None else None
+                items.append(
+                    {
+                        "id": str(g.id),
+                        "type": "gpu",
+                        "type_label": "Тест GPU",
+                        "profile_name": "gpu_benchmark",
+                        "start_time": g.started_at.isoformat(),
+                        "end_time": g.ended_at.isoformat(),
+                        "duration_sec": (g.ended_at - g.started_at).total_seconds(),
+                        "score": gpu_score,
+                        "score_label": (
+                            "—" if gpu_score is None else f"{round(gpu_score)}"
+                        ),
+                        "score_scale": "×10 000",
+                        "status": "cancelled" if g.cancelled else "completed",
+                        "samples": 0,
+                    }
+                )
+        except Exception as exc:  # pragma: no cover
+            logger.exception("history: gpu list failed: %s", exc)
+
+        # 6. GPU-стресс (таблица gpu_stress_runs). Headline — не балл, а вердикт
+        #    PASS/WARN/FAIL/UNKNOWN. Кладём его в score_label (score=None, шкала
+        #    не числовая). frontend показывает как текстовый вердикт.
+        try:
+            gpu_stress_repo = SqliteGpuStressRepository(settings.db_path)
+            for gs in gpu_stress_repo.list_runs(limit=limit):
+                verdict = gs.verdict.value if hasattr(gs.verdict, "value") else str(gs.verdict)
+                items.append(
+                    {
+                        "id": str(gs.id),
+                        "type": "gpu_stress",
+                        "type_label": "GPU-стресс",
+                        "profile_name": "gpu_stress",
+                        "start_time": gs.started_at.isoformat(),
+                        "end_time": gs.ended_at.isoformat(),
+                        "duration_sec": gs.duration_sec,
+                        "score": None,
+                        "score_label": verdict.upper(),
+                        "score_scale": "вердикт",
+                        "verdict": verdict,
+                        "status": "cancelled" if gs.cancelled else "completed",
+                        "samples": gs.samples_taken,
+                    }
+                )
+        except Exception as exc:  # pragma: no cover
+            logger.exception("history: gpu_stress list failed: %s", exc)
+
         # Сортируем мердж по start_time desc, возвращаем первые limit.
         items.sort(key=lambda x: x["start_time"], reverse=True)
         return items[:limit]
@@ -1663,11 +2088,16 @@ def create_app() -> FastAPI:
     @app.get("/api/runs/{run_id}")
     async def get_run(run_id: str) -> dict:
         full_id = repo.resolve_id(run_id)
-        if full_id is None:
-            raise HTTPException(status_code=404, detail="not_found")
-        result = repo.get(full_id)
+        result = repo.get(full_id) if full_id is not None else None
         if result is None:
-            raise HTTPException(status_code=404, detail="not_found")
+            # Не стресс-прогон (gpu / gpu_stress / general / winsat / micro) —
+            # диспатчим через _lookup_run и отдаём model_dump напрямую (как
+            # /api/general/runs/{id} и /api/winsat/runs/{id}). Для gpu/gpu_stress
+            # это единственный unified-путь к полному отчёту из Истории.
+            _kind, _rid, model = _lookup_run(settings.db_path, run_id)
+            if model is None:
+                raise HTTPException(status_code=404, detail="not_found")
+            return model.model_dump(mode="json")
         # Lazy compute stress_score: BenchmarkService записывает legacy
         # `final_score=0.0` (см. benchmark_service.py:113), реальный балл
         # считается отдельно через `compute_stress_score_context`. CLI делает
@@ -1773,6 +2203,8 @@ def create_app() -> FastAPI:
 
         from apexcore.infrastructure.persistence import (
             SqliteGeneralBenchmarkRepository,
+            SqliteGpuBenchmarkRepository,
+            SqliteGpuStressRepository,
             SqliteMicroRunRepository,
             SqliteResultRepository,
             SqliteWinsatRepository,
@@ -1782,10 +2214,12 @@ def create_app() -> FastAPI:
         if model is None or rid is None or kind is None:
             raise HTTPException(status_code=404, detail="run_not_found")
         repos = {
-            "stress":  SqliteResultRepository,
-            "micro":   SqliteMicroRunRepository,
-            "winsat":  SqliteWinsatRepository,
-            "general": SqliteGeneralBenchmarkRepository,
+            "stress":     SqliteResultRepository,
+            "micro":      SqliteMicroRunRepository,
+            "winsat":     SqliteWinsatRepository,
+            "general":    SqliteGeneralBenchmarkRepository,
+            "gpu":        SqliteGpuBenchmarkRepository,
+            "gpu_stress": SqliteGpuStressRepository,
         }
         target_repo = repos[kind](settings.db_path)
         try:
@@ -2200,6 +2634,87 @@ def create_app() -> FastAPI:
     @app.post("/api/ram-cache/stop")
     async def ramcache_stop() -> dict:
         return ramcache_ctrl.stop()
+
+    # ─── §9.5 — GPU-бенчмарк (Roofline OpenCL) ────────────────────────────
+    @app.get("/api/gpu/devices")
+    async def gpu_devices() -> dict:
+        """Список GPU-устройств через дефолтный OpenCL-бэкенд + флаг доступности.
+
+        Graceful degrade: если ICD-loader не загрузился / устройств нет —
+        ``available: false`` и пустой ``devices`` (без исключения). Frontend
+        сам покажет дружелюбное «OpenCL/GPU не обнаружен» и заблокирует запуск.
+        """
+        from apexcore.infrastructure.gpu import build_default_gpu_backend
+        try:
+            backend = build_default_gpu_backend()
+            available = backend.is_available()
+            devices = backend.list_devices() if available else []
+        except Exception:
+            logger.exception("gpu_devices: перечисление устройств упало")
+            available = False
+            devices = []
+        return {
+            "available": bool(available and devices),
+            "devices": [d.model_dump(mode="json") for d in devices],
+        }
+
+    @app.post("/api/gpu/start")
+    async def gpu_start(body: dict | None = None) -> dict:
+        """Запуск GPU-бенчмарка. Body:
+        ``{ "device_index"?: int, "fp32_duration_sec"?: float,
+        "fp64_duration_sec"?: float, "mem_duration_sec"?: float,
+        "pcie_duration_sec"?: float, "cooldown_sec"?: float }``.
+
+        Дефолты соответствуют :class:`GpuBenchmarkParams`. При отсутствии GPU
+        прогон всё равно стартует и завершится graceful-отчётом (score=None).
+        """
+        body = body or {}
+        try:
+            return gpu_ctrl.start(
+                device_index=int(body.get("device_index", 0)),
+                fp32_duration_sec=float(body.get("fp32_duration_sec", 5.0)),
+                fp64_duration_sec=float(body.get("fp64_duration_sec", 5.0)),
+                mem_duration_sec=float(body.get("mem_duration_sec", 5.0)),
+                pcie_duration_sec=float(body.get("pcie_duration_sec", 2.0)),
+                cooldown_sec=float(body.get("cooldown_sec", 2.0)),
+            )
+        except (RuntimeError, ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/gpu/status")
+    async def gpu_status() -> dict:
+        return gpu_ctrl.status()
+
+    @app.post("/api/gpu/stop")
+    async def gpu_stop() -> dict:
+        return gpu_ctrl.stop()
+
+    # ─── §9.5 — GPU-стресс-тест (термостабильность, вердикт PASS/WARN/FAIL) ──
+    @app.post("/api/gpu/stress/start")
+    async def gpu_stress_start(body: dict | None = None) -> dict:
+        """Запуск GPU-стресс-теста. Body:
+        ``{ "device_index"?: int, "duration_sec"?: float }``.
+
+        Дефолт длительности — 60 с (см. GpuStressOrchestrator.run). При
+        отсутствии GPU прогон всё равно стартует и завершится graceful-отчётом
+        (verdict=unknown), а не ошибкой.
+        """
+        body = body or {}
+        try:
+            return gpu_stress_ctrl.start(
+                device_index=int(body.get("device_index", 0)),
+                duration_sec=float(body.get("duration_sec", 60.0)),
+            )
+        except (RuntimeError, ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/gpu/stress/status")
+    async def gpu_stress_status() -> dict:
+        return gpu_stress_ctrl.status()
+
+    @app.post("/api/gpu/stress/stop")
+    async def gpu_stress_stop() -> dict:
+        return gpu_stress_ctrl.stop()
 
     @app.get("/api/winsat/runs/{run_id}")
     async def winsat_run_one(run_id: str) -> dict:

@@ -383,10 +383,6 @@ except ImportError:
     # pywin32 нет — модуль остаётся импортируемым, ApexcoreSensord = None.
     pass
 
-# Backward-compat alias для внешних импортов (если кто-то импортировал
-# `from apexcore.services.sensord import BenchkitSensord`). Удалить в v0.10.0.
-BenchkitSensord = ApexcoreSensord
-
 
 def _configure_service_logging(log_file: Path | None = None) -> None:
     """Настроить логгер сервиса: rotated file в %PROGRAMDATA%\\apexcore\\.

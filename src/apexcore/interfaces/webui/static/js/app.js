@@ -21,6 +21,7 @@ import * as dashboard from './screens/dashboard.js';
 import * as sensors from './screens/sensors.js';
 import * as stress from './screens/stress.js';
 import * as general from './screens/general.js';
+import * as gpu from './screens/gpu.js';
 import * as cpuAdvanced from './screens/cpu_advanced.js';
 import * as ramcache from './screens/ramcache.js';
 import * as winsat from './screens/winsat.js';
@@ -33,6 +34,7 @@ const ROUTES = {
   '#sensors':      sensors,
   '#stress':       stress,
   '#general':      general,
+  '#gpu':          gpu,
   '#cpu-advanced': cpuAdvanced,
   '#ramcache':     ramcache,
   '#winsat':       winsat,

@@ -1241,6 +1241,19 @@
   max-width: 520px;
 }
 
+/* Тест GPU: переключатель режимов (Бенчмарк / Стресс-тест) в шапке экрана
+   + строка параметров стресса (устройство + длительность в ряд). */
+.gpu-mode-toggle {
+  display: inline-flex;
+  gap: var(--gap-sm);
+}
+.gpu-stress-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-lg);
+  align-items: flex-start;
+}
+
 /* Шкала */
 .general-scale {
   display: flex;

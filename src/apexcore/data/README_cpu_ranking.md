@@ -76,6 +76,6 @@ Cinebench R23 1T / nT по публичным обзорам:
 - `tests/unit/test_cpu_ranking.py` — тесты модели/загрузки/матчинга.
 - `tests/unit/test_render_single_multi_ranking.py` — тесты рендера.
 
-См. также ARCHITECTURE.md по правилам неизменности `domain/models.py`
+См. также CLAUDE.md по правилам неизменности `domain/models.py`
 (этот YAML и связанный код **не** требуют изменений в моделях — они
 работают через опциональный параметр render-функции).

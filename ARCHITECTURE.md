@@ -389,7 +389,7 @@ HVCI/SAC/AV. Подробное обоснование — в `docs/research/res
    └─ P1.3: dedicated worker thread с COM apartment (queue.Queue
       request/response, timeout 2 с) → legacy import → CIM-fallback
       через PowerShell Get-CimInstance; safety-net `_WMI_PACKAGE_BROKEN`
-      сохранён как инвариант (см. ARCHITECTURE.md)
+      сохранён как инвариант (см. CLAUDE.md)
 ```
 
 Любая ошибка любого источника → graceful degrade на следующий, наружу
@@ -434,7 +434,7 @@ fallback chain). Если sensord установлен и Running — read_lhm_*
 
 **Dev-режим** (без коробки, editable install в venv) использует
 `scripts/install_sensord.ps1` — он делает 6 этапов pywin32+venv
-танцев (см. секцию «AMX persistent loader» в ARCHITECTURE.md).
+танцев (см. секцию «AMX persistent loader» в CLAUDE.md).
 Production-EXE этих сложностей не имеет.
 
 **Graceful fallback.** Если сервис не установлен или упал, lhm.py
@@ -606,7 +606,7 @@ Ryzen 7 6800H + Radeon 680M iGPU, Phison NVMe — см.
 - **`integration/`** — с реальной SQLite через `tmp_path`:
   - `test_sqlite_repo.py`, `test_micro_run_repo.py`.
 
-Команда: `pytest -q` из ``.
+Команда: `pytest -q` из `new-app/`.
 
 ## Что не входит в v2.0 (отложено)
 

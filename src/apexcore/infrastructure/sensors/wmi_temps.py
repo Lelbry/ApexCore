@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # COM уже инициализирован другими модулями (pythonnet/LHM в main-thread),
 # и импорт проходит. Подробности — в ``ARCHITECTURE.md`` секция «CLI-меню».
 #
-# **Регрессионный инвариант** (см. ``ARCHITECTURE.md``): этот флаг + широкий
+# **Регрессионный инвариант** (см. ``CLAUDE.md``): этот флаг + широкий
 # ``except Exception`` должны сохраняться даже после введения dedicated
 # worker'а (P1.3). Без них классы failure modes снова прорываются в
 # TelemetryService как «Сбор метрик завершился ошибкой».
@@ -58,7 +58,7 @@ class _WmiWorker:
     ``CoInitializeEx`` модуль ``wmi`` падает на module-level
     ``GetObject("winmgmts:")`` с ``com_error MK_E_SYNTAX``. Раньше этот
     класс failure mode обходился через ``_WMI_PACKAGE_BROKEN`` —
-    «вообще не пытаться» (см. ARCHITECTURE.md). Worker даёт правильное
+    «вообще не пытаться» (см. CLAUDE.md). Worker даёт правильное
     решение: WMI-запрос идёт из своего потока с COM_APARTMENTTHREADED.
 
     Архитектура:
@@ -241,7 +241,7 @@ def read_msacpi_thermal_zone() -> dict[str, float]:
     3. **CIM-fallback**: ``Get-CimInstance`` через PowerShell.
 
     ``_WMI_PACKAGE_BROKEN`` сохранён как safety-net инвариант (см.
-    ``ARCHITECTURE.md``) — он сужает попытки в (2) после первого фатального
+    ``CLAUDE.md``) — он сужает попытки в (2) после первого фатального
     сбоя на любой класс failure mode. Worker'а это не касается:
     он самостоятельно помечается ``failed`` при init-сбое.
     """

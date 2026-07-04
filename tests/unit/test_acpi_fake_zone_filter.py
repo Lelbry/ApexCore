@@ -68,7 +68,7 @@ def test_has_cpu_temp_ignores_gpu_storage() -> None:
 
 
 def test_has_cpu_temp_thermal_zone_not_cpu() -> None:
-    """**Регрессия**: ``thermal_zone_N`` — НЕ CPU (ACPI fake zone, см. ARCHITECTURE.md)."""
+    """**Регрессия**: ``thermal_zone_N`` — НЕ CPU (ACPI fake zone, см. CLAUDE.md)."""
     assert _has_cpu_temp({"thermal_zone_0": 28.0}) is False
     assert _has_cpu_temp({"thermal_zone_1": 30.0}) is False
 

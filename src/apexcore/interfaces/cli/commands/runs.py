@@ -1,11 +1,14 @@
 """CLI-команда `apexcore runs` — управление историей прогонов.
 
-Объединённая лента четырёх типов прогонов:
+Объединённая лента типов прогонов:
 - **stress** — длительные стресс-прогоны (таблица ``runs``).
 - **micro**  — scoring v2 (таблица ``micro_runs``), реальный балл бенчмарка.
 - **winsat** — Аналог Windows Winsat (таблица ``winsat_runs``, шкала 1.0–9.9).
 - **general** — Общая оценка производительности системы
   (таблица ``general_benchmark_runs``, шкала ×10 000).
+- **gpu** — GPU-бенчмарк по Roofline (таблица ``gpu_benchmark_runs``, шкала ×10 000).
+- **gpu_stress** — GPU-стресс на термостабильность (таблица ``gpu_stress_runs``,
+  headline — вердикт PASS/WARN/FAIL/UNKNOWN, без числового балла).
 
 Хелперы ``collect_unified_listing`` / ``render_unified_listing`` /
 ``show_run_by_ref`` / ``export_run_by_ref`` используются интерактивным
@@ -29,13 +32,15 @@ logger = logging.getLogger(__name__)
 
 app = typer.Typer(help="Просмотр и удаление сохранённых прогонов.")
 
-RunKind = Literal["stress", "micro", "winsat", "general"]
+RunKind = Literal["stress", "micro", "winsat", "general", "gpu", "gpu_stress"]
 
 _KIND_LABELS: dict[str, str] = {
-    "stress":  "Стресс",
-    "micro":   "Тест CPU",
-    "winsat":  "Winsat",
-    "general": "Общая оценка производительности системы",
+    "stress":     "Стресс",
+    "micro":      "Тест CPU",
+    "winsat":     "Winsat",
+    "general":    "Общая оценка производительности системы",
+    "gpu":        "Тест GPU",
+    "gpu_stress": "GPU-стресс",
 }
 
 
@@ -57,7 +62,7 @@ class RunRef:
 
 
 def collect_unified_listing(limit: int = 20) -> list[RunRef]:
-    """Собрать ленту из четырёх репозиториев, отсортировать по start_time DESC.
+    """Собрать ленту из всех репозиториев, отсортировать по start_time DESC.
 
     Берёт по ``limit`` записей из каждого репо — после слияния и сортировки
     общая выборка обрезается до ``limit``. Это компромисс между точностью и
@@ -78,6 +83,8 @@ def collect_unified_listing(limit: int = 20) -> list[RunRef]:
     from apexcore.domain.errors import RepositoryError
     from apexcore.infrastructure.persistence import (
         SqliteGeneralBenchmarkRepository,
+        SqliteGpuBenchmarkRepository,
+        SqliteGpuStressRepository,
         SqliteMicroRunRepository,
         SqliteResultRepository,
         SqliteWinsatRepository,
@@ -157,10 +164,37 @@ def collect_unified_listing(limit: int = 20) -> list[RunRef]:
                 score_display=("—" if gb.score is None else f"{gb.score:,.0f}".replace(",", " ")),
             ))
 
+    def _collect_gpu() -> None:
+        gpu_repo = SqliteGpuBenchmarkRepository(settings.db_path)
+        for g in gpu_repo.list_runs(limit=limit):
+            refs.append(RunRef(
+                kind="gpu",
+                uuid=str(g.id),
+                start_time=g.started_at,
+                duration_sec=(g.ended_at - g.started_at).total_seconds(),
+                score_display=(
+                    "—" if g.score is None else f"{g.score:,.0f}".replace(",", " ")
+                ),
+            ))
+
+    def _collect_gpu_stress() -> None:
+        gs_repo = SqliteGpuStressRepository(settings.db_path)
+        for gs in gs_repo.list_runs(limit=limit):
+            # У GPU-стресса нет балла — headline это вердикт стабильности.
+            refs.append(RunRef(
+                kind="gpu_stress",
+                uuid=str(gs.id),
+                start_time=gs.started_at,
+                duration_sec=(gs.ended_at - gs.started_at).total_seconds(),
+                score_display=_format_gpu_stress_verdict(gs.verdict),
+            ))
+
     _safe_collect("стресс (runs)", _collect_stress)
     _safe_collect("micro (micro_runs)", _collect_micro)
     _safe_collect("winsat (winsat_runs)", _collect_winsat)
     _safe_collect("общая оценка (general_benchmark_runs)", _collect_general)
+    _safe_collect("gpu-бенчмарк (gpu_benchmark_runs)", _collect_gpu)
+    _safe_collect("gpu-стресс (gpu_stress_runs)", _collect_gpu_stress)
 
     refs.sort(key=lambda r: r.start_time, reverse=True)
     if degraded:
@@ -216,6 +250,22 @@ def _format_winsat_score(report) -> str:
     ])
 
 
+def _format_gpu_stress_verdict(verdict: object) -> str:
+    """Короткая цветная подпись вердикта GPU-стресса для ленты истории.
+
+    ``verdict`` — ``GpuStressVerdict`` (str-Enum). У GPU-стресса нет
+    числового балла, поэтому в колонку «Балл» кладём сам вердикт
+    (PASS/WARN/FAIL/UNKNOWN → русское слово с цветом).
+    """
+    value = str(getattr(verdict, "value", verdict) or "unknown")
+    return {
+        "pass":    "[green]ПРОЙДЕНО[/]",
+        "warn":    "[yellow]С замечаниями[/]",
+        "fail":    "[red]НЕ ПРОЙДЕНО[/]",
+        "unknown": "[dim]н/д[/]",
+    }.get(value, "[dim]н/д[/]")
+
+
 def render_unified_listing(refs: list[RunRef], *, with_uuid: bool = False) -> None:
     """Отрисовать таблицу ленты с нумерацией 1..N.
 
@@ -265,6 +315,8 @@ def show_run_by_ref(ref: RunRef) -> None:
     """Отрисовать детали одного прогона; рендер выбирается по ``ref.kind``."""
     from apexcore.infrastructure.persistence import (
         SqliteGeneralBenchmarkRepository,
+        SqliteGpuBenchmarkRepository,
+        SqliteGpuStressRepository,
         SqliteMicroRunRepository,
         SqliteResultRepository,
         SqliteWinsatRepository,
@@ -273,6 +325,8 @@ def show_run_by_ref(ref: RunRef) -> None:
         console,
         render_bench_result,
         render_general_benchmark_report,
+        render_gpu_report,
+        render_gpu_stress_report,
         render_metric_summary,
         render_microbench_suite,
         render_overall_score,
@@ -323,20 +377,41 @@ def show_run_by_ref(ref: RunRef) -> None:
         render_general_benchmark_report(report)
         return
 
+    if ref.kind == "gpu":
+        gpu_repo = SqliteGpuBenchmarkRepository(settings.db_path)
+        report = gpu_repo.get(ref.uuid)
+        if report is None:
+            console.print(f"[red]GPU-прогон не найден: {ref.uuid}[/]")
+            return
+        render_gpu_report(report)
+        return
+
+    if ref.kind == "gpu_stress":
+        gs_repo = SqliteGpuStressRepository(settings.db_path)
+        report = gs_repo.get(ref.uuid)
+        if report is None:
+            console.print(f"[red]GPU-стресс-прогон не найден: {ref.uuid}[/]")
+            return
+        render_gpu_stress_report(report)
+        return
+
     console.print(f"[red]Неизвестный тип прогона: {ref.kind!r}[/]")
 
 
 def export_run_by_ref(ref: RunRef, fmt: str, out: Path | None) -> Path | None:
     """Экспортировать прогон в JSON / CSV.
 
-    - JSON работает для всех трёх типов (через ``model_dump_json``).
+    - JSON работает для всех типов (через ``model_dump_json``).
     - CSV работает только для **stress** (там есть таймсерия
       ``metrics_history``, по которой `csv_exporter` строит таблицу
-      отсчётов). Для micro/winsat CSV выдаст предупреждение и не сохранит файл.
+      отсчётов). Для micro / winsat / general / gpu / gpu-стресс CSV выдаст
+      предупреждение и не сохранит файл.
     """
     from apexcore.infrastructure.exporters import export_run_csv, export_run_json
     from apexcore.infrastructure.persistence import (
         SqliteGeneralBenchmarkRepository,
+        SqliteGpuBenchmarkRepository,
+        SqliteGpuStressRepository,
         SqliteMicroRunRepository,
         SqliteResultRepository,
         SqliteWinsatRepository,
@@ -418,12 +493,46 @@ def export_run_by_ref(ref: RunRef, fmt: str, out: Path | None) -> Path | None:
         console.print(f"[green]Экспортировано → {target}[/]")
         return target
 
+    if ref.kind == "gpu":
+        if fmt == "csv":
+            console.print(
+                "[yellow]CSV для GPU-бенчмарка не поддерживается[/] "
+                "(только финальные числа). Используйте JSON."
+            )
+            return None
+        gpu_repo = SqliteGpuBenchmarkRepository(settings.db_path)
+        report = gpu_repo.get(ref.uuid)
+        if report is None:
+            console.print(f"[red]GPU-прогон не найден: {ref.uuid}[/]")
+            return None
+        target = out or Path(f"apexcore_gpu_{report.id}.json")
+        target.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+        console.print(f"[green]Экспортировано → {target}[/]")
+        return target
+
+    if ref.kind == "gpu_stress":
+        if fmt == "csv":
+            console.print(
+                "[yellow]CSV для GPU-стресса не поддерживается[/] "
+                "(только сводки телеметрии). Используйте JSON."
+            )
+            return None
+        gs_repo = SqliteGpuStressRepository(settings.db_path)
+        report = gs_repo.get(ref.uuid)
+        if report is None:
+            console.print(f"[red]GPU-стресс-прогон не найден: {ref.uuid}[/]")
+            return None
+        target = out or Path(f"apexcore_gpu_stress_{report.id}.json")
+        target.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+        console.print(f"[green]Экспортировано → {target}[/]")
+        return target
+
     console.print(f"[red]Неизвестный тип прогона: {ref.kind!r}[/]")
     return None
 
 
 def _resolve_to_ref(run_id: str) -> RunRef | None:
-    """Найти прогон по UUID/префиксу в одной из четырёх таблиц.
+    """Найти прогон по UUID/префиксу в одной из таблиц истории.
 
     Возвращает ``RunRef`` с заполненным ``kind`` и полным UUID; остальные поля
     оставлены неинициализированными — используется только для ``show_run`` и
@@ -431,6 +540,8 @@ def _resolve_to_ref(run_id: str) -> RunRef | None:
     """
     from apexcore.infrastructure.persistence import (
         SqliteGeneralBenchmarkRepository,
+        SqliteGpuBenchmarkRepository,
+        SqliteGpuStressRepository,
         SqliteMicroRunRepository,
         SqliteResultRepository,
         SqliteWinsatRepository,
@@ -463,6 +574,18 @@ def _resolve_to_ref(run_id: str) -> RunRef | None:
         return RunRef(kind="general", uuid=full, start_time=datetime.min,
                       duration_sec=0.0, score_display="")
 
+    gpu_repo = SqliteGpuBenchmarkRepository(settings.db_path)
+    full = gpu_repo.resolve_id(run_id)
+    if full is not None:
+        return RunRef(kind="gpu", uuid=full, start_time=datetime.min,
+                      duration_sec=0.0, score_display="")
+
+    gs_repo = SqliteGpuStressRepository(settings.db_path)
+    full = gs_repo.resolve_id(run_id)
+    if full is not None:
+        return RunRef(kind="gpu_stress", uuid=full, start_time=datetime.min,
+                      duration_sec=0.0, score_display="")
+
     return None
 
 
@@ -490,15 +613,17 @@ def show_run(
 ) -> None:
     """Показать сводку по одному прогону.
 
-    Ищет в трёх таблицах (runs / micro_runs / winsat_runs) и адаптирует
-    рендер под тип. Принимает полный UUID или префикс (минимум 4 символа).
+    Ищет во всех таблицах истории (stress / micro / winsat / general / gpu /
+    gpu-стресс) и адаптирует рендер под тип. Принимает полный UUID или
+    префикс (минимум 4 символа).
     """
     from apexcore.interfaces.cli.render import console
 
     ref = _resolve_to_ref(run_id)
     if ref is None:
         console.print(
-            f"[red]Прогон '{run_id}' не найден[/] (искал в stress / micro / winsat)"
+            f"[red]Прогон '{run_id}' не найден[/] "
+            "(искал в stress / micro / winsat / general / gpu / gpu-стресс)"
         )
         raise typer.Exit(code=2)
     show_run_by_ref(ref)
@@ -512,6 +637,8 @@ def delete_run(
     """Удалить прогон по UUID (ищет во всех таблицах)."""
     from apexcore.infrastructure.persistence import (
         SqliteGeneralBenchmarkRepository,
+        SqliteGpuBenchmarkRepository,
+        SqliteGpuStressRepository,
         SqliteMicroRunRepository,
         SqliteResultRepository,
         SqliteWinsatRepository,
@@ -547,5 +674,17 @@ def delete_run(
         full = gb_repo.resolve_id(run_id)
         if full is not None:
             deleted = gb_repo.delete(UUID(full))
+
+    if not deleted:
+        gpu_repo = SqliteGpuBenchmarkRepository(settings.db_path)
+        full = gpu_repo.resolve_id(run_id)
+        if full is not None:
+            deleted = gpu_repo.delete(UUID(full))
+
+    if not deleted:
+        gs_repo = SqliteGpuStressRepository(settings.db_path)
+        full = gs_repo.resolve_id(run_id)
+        if full is not None:
+            deleted = gs_repo.delete(UUID(full))
 
     console.print("[green]Удалено[/]" if deleted else "[yellow]Не найдено[/]")

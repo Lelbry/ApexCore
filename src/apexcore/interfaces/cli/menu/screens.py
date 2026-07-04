@@ -53,15 +53,16 @@ class HomeScreen(Screen):
                 "Общая оценка производительности системы",
                 self._benchmark,
             ),
-            MenuItem("5", "Расширенное тестирование процессора", self._cpu),
+            MenuItem("5", "Оценка производительности GPU", self._gpu),
+            MenuItem("6", "Расширенное тестирование процессора", self._cpu),
             MenuItem(
-                "6",
+                "7",
                 "Расширенный тест оперативной памяти и кеша (Ram & CPU Cache)",
                 self._ram_cache,
             ),
-            MenuItem("7", "История ваших тестов", self._history),
-            MenuItem("8", "Web UI (localhost)", self._webui),
-            MenuItem("9", "Настройки", self._settings),
+            MenuItem("8", "История ваших тестов", self._history),
+            MenuItem("9", "Web UI (localhost)", self._webui),
+            MenuItem("10", "Настройки", self._settings),
             MenuItem("q", "Выход", self._quit, accent="red"),
         ]
         return items
@@ -111,6 +112,11 @@ class HomeScreen(Screen):
         from apexcore.interfaces.cli.menu.benchmark_screen import BenchmarkScreen
 
         return push(BenchmarkScreen())
+
+    def _gpu(self) -> NavResult:
+        from apexcore.interfaces.cli.menu.gpu_screen import GpuScreen
+
+        return push(GpuScreen())
 
     def _history(self) -> NavResult:
         return push(HistoryScreen())

@@ -5,7 +5,7 @@
 
 1. Открывает borderless WPF-окно 960×680.
 2. Хостит `WebView2`, который рендерит `Resources/wwwroot/index.html` —
-   копия `src/apexcore/interfaces/webui/static/setup/`.
+   копия `new-app/src/apexcore/interfaces/webui/static/setup/`.
 3. Принимает JS-команды через `window.chrome.webview.postMessage`:
    - `windowAction` (minimize / maximize / close)
    - `browse` (диалог выбора папки)

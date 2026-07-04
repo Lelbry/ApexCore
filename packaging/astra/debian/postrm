@@ -11,11 +11,6 @@ case "$1" in
         if [ -d /opt/apexcore ]; then
             rm -rf /opt/apexcore
         fi
-        # Backward-compat: если v0.8.x оставил /opt/benchkit/, тоже чистим
-        # (на случай ручной установки старого .deb после нового).
-        if [ -d /opt/benchkit ]; then
-            rm -rf /opt/benchkit
-        fi
         # Обновить кэш иконок после удаления хроникол-иконок hicolor.
         if command -v gtk-update-icon-cache >/dev/null 2>&1; then
             gtk-update-icon-cache -q /usr/share/icons/hicolor/ 2>/dev/null || true

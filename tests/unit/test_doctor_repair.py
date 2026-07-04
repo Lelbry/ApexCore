@@ -3,7 +3,7 @@
 Главная проверка: путь к ``scripts/fetch_lhm.ps1`` корректно вычисляется
 от ``doctor.py`` через ``Path(__file__).parents[5]``. Регрессия — после
 P0 был баг с ``parents[4]``, который указывал на ``src/`` вместо
-````, и self-repair падал с «Скрипт не найден».
+``new-app/``, и self-repair падал с «Скрипт не найден».
 """
 
 from __future__ import annotations
@@ -18,10 +18,10 @@ if sys.platform != "win32":  # pragma: no cover
 
 
 def test_fetch_lhm_script_path_resolves_to_new_app_scripts() -> None:
-    """``parents[5]`` от doctor.py указывает на , не на src/.
+    """``parents[5]`` от doctor.py указывает на new-app/, не на src/.
 
     Регрессия: с P0 был баг ``parents[4]`` → искало `src/scripts/`.
-    Должно быть `parents[5]` → `scripts/`.
+    Должно быть `parents[5]` → `new-app/scripts/`.
     """
     from apexcore.interfaces.cli.commands import doctor
 

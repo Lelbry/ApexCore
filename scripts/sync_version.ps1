@@ -1,11 +1,11 @@
-﻿# Sync version — единый источник истины: pyproject.toml `[project] version`.
+﻿# Sync version — единый источник истины: new-app/pyproject.toml `[project] version`.
 #
 # Пишет три артефакта:
 #   build/version.txt   — простой текст для всех сборок (Astra dch и т.п.)
 #   build/version.iss   — Inno Setup `#define MyAppVersion "X.X.X"`
 #   $env:APEXCORE_VERSION — переменная окружения текущего процесса PowerShell
 #
-# Запуск: pwsh -File scripts/sync_version.ps1
+# Запуск: pwsh -File new-app/scripts/sync_version.ps1
 # Используется в scripts/build_windows.ps1 шаг [0/10] и scripts/build_astra.sh [3/6].
 
 $ErrorActionPreference = "Stop"

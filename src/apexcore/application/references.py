@@ -1,6 +1,6 @@
 """Reference module: гибрид Roofline + empirical proxy для всех 12 micro-тестов.
 
-Спецификация: ``docs/scoring_v2.md`` §4.
+Спецификация: ``new-app/docs/scoring_v2.md`` §4.
 
 Для каждого подтеста reference value определяется по приоритету:
 

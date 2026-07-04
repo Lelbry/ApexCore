@@ -13,7 +13,7 @@
 #   [5/6]  dpkg-buildpackage -us -uc -b
 #   [6/6]  Перенос .deb в dist/
 #
-# Запуск: bash scripts/build_astra.sh
+# Запуск: bash new-app/scripts/build_astra.sh
 
 set -euo pipefail
 

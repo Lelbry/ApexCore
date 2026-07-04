@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apexcore"
-version = "1.0.0"
+version = "1.1.0"
 description = "Кроссплатформенная методика комплексной оценки производительности компьютера: телеметрия, тренды, стресс-тесты и статистическая диагностика"
 readme = "README.md"
 license = { text = "MIT" }
@@ -43,9 +43,6 @@ dev = [
 
 [project.scripts]
 apexcore = "apexcore.interfaces.cli.main:app"
-# DEPRECATED: alias для обратной совместимости со скриптами пользователя,
-# вызывающими `benchkit ...`. УДАЛИТЬ в v0.10.0 (см. ARCHITECTURE.md «Backward-compat»).
-benchkit = "apexcore.interfaces.cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]

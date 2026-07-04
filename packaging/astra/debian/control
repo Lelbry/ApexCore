@@ -28,16 +28,15 @@ Depends: ${misc:Depends},
          x11-utils,
          libcap2-bin,
          policykit-1 | polkit
-Recommends: linux-headers-generic
+# ocl-icd-libopencl1 — OpenCL ICD-loader (libOpenCL.so.1), mesa-opencl-icd —
+# универсальный ICD (Clover/Rusticl) для GPU-модуля. Recommends, а НЕ Depends:
+# их отсутствие не должно блокировать установку — без ICD GPU-модуль просто
+# деградирует («GPU недоступен»), остальной apexcore работает. Проприетарный
+# драйвер (nvidia-opencl-icd) при наличии приоритетнее mesa.
+Recommends: linux-headers-generic,
+            ocl-icd-libopencl1,
+            mesa-opencl-icd
 Suggests: nvidia-driver, firmware-amd-graphics
-# Backward-compat: пакет назывался `benchkit` до v0.9.0. Conflicts/Replaces/
-# Provides позволяют `apt install apexcore` атомарно заменить старый benchkit
-# на новый apexcore (apt снимает benchkit перед установкой apexcore).
-# Provides: позволяет существующим downstream-пакетам с `Depends: benchkit`
-# по-прежнему резолвиться. Удалить в v0.10.0.
-Conflicts: benchkit (<< 0.9.0)
-Replaces: benchkit (<< 0.9.0)
-Provides: benchkit (= ${binary:Version})
 Description: ApexCore — комплексная оценка производительности компьютера
  Кроссплатформенный (Windows / Astra Linux) CLI-инструмент с веб-интерфейсом
  ApexCore для бенчмаркинга, термо-стресса и статистической диагностики

@@ -103,3 +103,36 @@ CREATE TABLE IF NOT EXISTS general_benchmark_runs (
 
 CREATE INDEX IF NOT EXISTS idx_gb_runs_started ON general_benchmark_runs(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_gb_runs_score ON general_benchmark_runs(score DESC);
+
+-- Прогоны GPU-бенчмарка (Roofline для GPU, шкала ×10 000). Композитный балл
+-- GM(r_fp32, r_mem) × 10 000 (FP64 — информационный, вне балла). Отдельная
+-- таблица от general_benchmark_runs (то CPU+RAM+диск) и от micro_runs/winsat.
+-- См. docs/gpu_benchmark.md. Additive: добавлена в схеме v5.
+CREATE TABLE IF NOT EXISTS gpu_benchmark_runs (
+    id            TEXT PRIMARY KEY,
+    started_at    TEXT NOT NULL,
+    ended_at      TEXT NOT NULL,
+    score         REAL,            -- ×10 000, NULL если score не посчитан
+    device_name   TEXT,            -- имя GPU-устройства, напр. 'NVIDIA GeForce RTX 4070 Ti'
+    payload_json  TEXT NOT NULL    -- полный GpuBenchmarkReport
+);
+
+CREATE INDEX IF NOT EXISTS idx_gpu_runs_started ON gpu_benchmark_runs(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gpu_runs_score ON gpu_benchmark_runs(score DESC);
+
+-- Прогоны GPU-стресс-теста (термостабильность, «power virus»). Хранит
+-- GpuStressReport целиком в JSON + индексные поля. Здесь НЕТ балла —
+-- headline это вердикт PASS/WARN/FAIL/UNKNOWN. Отдельная таблица от
+-- gpu_benchmark_runs (то Roofline-балл). См. docs/gpu_benchmark.md.
+-- Additive: добавлена в схеме v6.
+CREATE TABLE IF NOT EXISTS gpu_stress_runs (
+    id            TEXT PRIMARY KEY,
+    started_at    TEXT NOT NULL,
+    ended_at      TEXT NOT NULL,
+    verdict       TEXT,            -- pass / warn / fail / unknown (GpuStressVerdict.value)
+    device_name   TEXT,            -- имя GPU-устройства, напр. 'NVIDIA GeForce RTX 4070 Ti'
+    payload_json  TEXT NOT NULL    -- полный GpuStressReport
+);
+
+CREATE INDEX IF NOT EXISTS idx_gpu_stress_runs_started ON gpu_stress_runs(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gpu_stress_runs_verdict ON gpu_stress_runs(verdict, started_at DESC);

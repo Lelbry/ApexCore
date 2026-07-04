@@ -175,7 +175,7 @@ def _run_self_repair(report) -> None:  # type: ignore[no-untyped-def]
             typer.echo(
                 "\n  • LHM DLL не найдена в lib/. Запустить fetch_lhm.ps1 "
                 "сейчас? Он скачает LHM v0.9.6 с GitHub (~700 КБ), "
-                "проверит SHA256 и положит DLL в src/apexcore/"
+                "проверит SHA256 и положит DLL в new-app/src/apexcore/"
                 "infrastructure/sensors/lib/."
             )
             if typer.confirm("    Скачать?", default=True):
@@ -242,10 +242,12 @@ def _run_fetch_lhm_script() -> bool:
         typer.secho("    PowerShell не найден в PATH.", fg=typer.colors.RED)
         return False
 
-    # fetch_lhm.ps1 лежит в scripts/ в корне репозитория. Путь от этого файла:
-    #   commands[0] / cli[1] / interfaces[2] / apexcore[3] / src[4] / <root>[5]
-    project_root = Path(__file__).resolve().parents[5]
-    script = project_root / "scripts" / "fetch_lhm.ps1"
+    # fetch_lhm.ps1 лежит в new-app/scripts/. Путь от этого файла:
+    #   doctor.py / commands / cli / interfaces / apexcore / src / new-app
+    #     [0]       [1]       [2]       [3]          [4]      [5]    [6]
+    # → parents[5] = new-app/.
+    new_app_root = Path(__file__).resolve().parents[5]
+    script = new_app_root / "scripts" / "fetch_lhm.ps1"
     if not script.exists():
         typer.secho(
             f"    Скрипт не найден: {script}", fg=typer.colors.RED

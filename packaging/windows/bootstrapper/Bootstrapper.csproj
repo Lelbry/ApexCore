@@ -13,7 +13,6 @@
 
     <!-- Версия читается из build/version.txt сборкой (APEXCORE_VERSION env). -->
     <Version>$(APEXCORE_VERSION)</Version>
-    <Version Condition="'$(APEXCORE_VERSION)' == ''">$(BENCHKIT_VERSION)</Version>
     <Version Condition="'$(Version)' == ''">0.0.0</Version>
     <FileVersion>$(Version)</FileVersion>
     <InformationalVersion>$(Version)</InformationalVersion>

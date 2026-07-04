@@ -3,8 +3,6 @@
 # Не делает destructive автонастроек. Только:
 #   - обновляет кэш иконок (gtk-update-icon-cache)
 #   - проверяет окружение (Python ≥ 3.11)
-#   - мигрирует данные из /opt/benchkit/ → /opt/apexcore/ (v0.8.x → v0.9.0)
-#     и из user-data dirs ~/.local/share/benchkit/ → ~/.local/share/apexcore/
 #   - печатает приглашение на запуск `apexcore setup` для wizard'а
 #
 # Реальная пост-установочная настройка (sensors-detect, setcap, BLAS probe)
@@ -13,40 +11,8 @@
 
 set -e
 
-migrate_user_dirs() {
-    # Перенести содержимое ~/.local/share/benchkit → ~/.local/share/apexcore
-    # для каждого реального пользователя в /home/. Не падаем при ошибках.
-    # Backward-compat для upgrade с v0.8.x; удалить в v0.10.0.
-    for home in /home/* /root; do
-        [ -d "$home" ] || continue
-        legacy_dir="$home/.local/share/benchkit"
-        new_dir="$home/.local/share/apexcore"
-        if [ -d "$legacy_dir" ] && [ ! -e "$legacy_dir/.migrated_to_apexcore" ]; then
-            if [ ! -d "$new_dir" ] || [ -z "$(ls -A "$new_dir" 2>/dev/null)" ]; then
-                mkdir -p "$new_dir"
-                # Копируем (не mv) чтобы не сломать существующие открытые файлы;
-                # apexcore-код тоже сделает миграцию при первом запуске.
-                cp -a "$legacy_dir"/. "$new_dir"/ 2>/dev/null || true
-                echo "Перенесено в $new_dir" > "$legacy_dir/.migrated_to_apexcore"
-                # Восстанавливаем владельца — cp под root может сменить uid.
-                owner=$(stat -c '%U:%G' "$home" 2>/dev/null || echo "")
-                if [ -n "$owner" ]; then
-                    chown -R "$owner" "$new_dir" 2>/dev/null || true
-                fi
-                echo "[apexcore] Перенесены данные пользователя: $legacy_dir → $new_dir"
-            fi
-        fi
-    done
-}
-
 case "$1" in
     configure)
-        # ── Backward-compat миграция /opt/benchkit/ → /opt/apexcore/ ──
-        # /opt/benchkit/ остаётся (это venv от старого .deb-пакета, dpkg
-        # снимет его автоматически через Conflicts/Replaces). Но user-data
-        # в ~/.local/share/benchkit/ — отдельная история, мигрируем явно.
-        migrate_user_dirs || true
-
         # Обновить кэш иконок (если есть gtk-update-icon-cache).
         if command -v gtk-update-icon-cache >/dev/null 2>&1; then
             gtk-update-icon-cache -q /usr/share/icons/hicolor/ 2>/dev/null || true
